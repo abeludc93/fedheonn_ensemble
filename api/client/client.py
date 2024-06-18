@@ -69,11 +69,7 @@ class Client:
         model_info = response.json()
         return model_info
 
-    def evaluate(
-        self,
-        model_name: str,
-        ckks_vector: Union[ts.CKKSVector, bytes],  # serialized or not
-    ) -> np.ndarray:
+    def evaluate(self, model_name: str, ckks_vector: Union[ts.CKKSVector, bytes]) -> np.ndarray:
         """Evaluate model `model_name` on the encrypted input data `ckks_vector`
 
         Args:
@@ -110,7 +106,7 @@ class Client:
 
         return ser_result
 
-    def get_context(self,) -> ts.Context:
+    def get_context(self) -> ts.Context:
         """Get registered context on the server
 
         Returns:

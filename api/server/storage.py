@@ -52,7 +52,7 @@ def save_dataset(X: np.ndarray, Y: np.ndarray, batch_size: int) -> str:
     return dataset_id
 
 
-def load_dataset(dataset_id: str,) -> Tuple[np.ndarray, np.ndarray, int]:
+def load_dataset(dataset_id: str) -> Tuple[np.ndarray, np.ndarray, int]:
     """Load a dataset into CKKSVectors"""
     X, Y, batch_size = DATASETS[dataset_id]
     return X, Y, batch_size
