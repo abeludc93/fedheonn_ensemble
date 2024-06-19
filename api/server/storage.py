@@ -17,11 +17,15 @@ import tenseal as ts
 import numpy as np
 
 DATASETS = {
-    # dataset_id: [ctx_id, X, Y, batch_size]
+    # dataset_id: [X, Y, batch_size]
 }
 
 CONTEXTS = {
     # ctx_id: context
+}
+
+CONTEXTS_PK = {
+    # ctx_id: pk
 }
 
 TOKEN_LENGTH = 32
@@ -31,6 +35,12 @@ def save_context(context: bytes) -> str:
     """Save a context into a permanent storage"""
     ctx_id = get_random_id()
     CONTEXTS[ctx_id] = context
+    return ctx_id
+
+
+def save_context_pk(ctx_id: str, pk: ts.enc_context.SecretKey) -> str:
+    """Save a context pk into a permanent storage"""
+    CONTEXTS_PK[ctx_id] = pk
     return ctx_id
 
 

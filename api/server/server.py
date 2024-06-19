@@ -10,7 +10,7 @@ RESTful API providing the main evaluation service
 """
 # Standard libraries
 from base64 import b64encode, b64decode
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 # Third-party libraries
 import tenseal as ts
 import numpy as np
@@ -41,34 +41,32 @@ if CORS:
 
 
 class ContextPK(BaseModel):
-    context: str = Field(..., description="Context ID"),
-    ctx_pk: str = Field(..., description="Serialized context PK")
+    context: str
 
 
 class CKKSVector(BaseModel):
-    ckks_vector: str = Field(..., description="Serialized CKKSVector representing the input to the model")
+    ckks_vector: str
 
 
 class Context(BaseModel):
-    context: str = Field(..., description="Serialized TenSEALContext containing the keys needed for the evaluation")
+    context: str
 
 
 class Dataset(BaseModel):
-    X: List[str] = Field(..., description="Serialized CKKSVectors representing the data features")
-    Y: List[str] = Field(..., description="Serialized CKKSVectors representing the data labels")
-    batch_size: int = Field(1, min=1, description="Number of entries per CKKSVector")
+    X: List[str]
+    Y: List[str]
+    batch_size: int = 1
 
 
 class ModelDescription(BaseModel):
-    name_model: str = Field(..., description="Name of the model. Used to query an evaluation")
-    description: str = Field(..., description="The description of the model architecture, as well the input that "
-                                              "should be passed to it")
-    default_version: str = Field(..., description="The default version used during evaluation")
-    versions: List[str] = Field(..., description="Available versions of the model")
+    name_model: str
+    description: str
+    default_version: str
+    versions: List[str]
 
 
 class NumpyArray(BaseModel):
-    nd_array: str = Field(..., description="Serialized numpy ndarray representing the output of the model")
+    nd_array: str
 
 
 def answer_418(msg: str):
@@ -161,8 +159,7 @@ async def get_dataset(dataset_id: str):
 
 
 @app.get("/create_context/", response_model=ContextPK)
-def create_context(poly_modulus_degree: int, coef_mod_bit_sizes: list[int], global_scale: float,
-                   gen_galois_keys: bool, save_secret_key: bool):
+def create_context(gen_galois_keys: bool, save_secret_key: bool):
     """Create a TenSEAL context holding encryption keys and parameters:
         * poly_modulus_degree: polynomial modulus degree
         * coef_mod_bit_sizes: bit size of the coefficients' modulus
@@ -171,30 +168,30 @@ def create_context(poly_modulus_degree: int, coef_mod_bit_sizes: list[int], glob
         * gen_relin_keys: generate relinearization keys
         * save_secret_key: save the secret key into the context
     """
-
     ctx = ts.context(
         ts.SCHEME_TYPE.CKKS,
-        poly_modulus_degree=poly_modulus_degree,
-        coeff_mod_bit_sizes=coef_mod_bit_sizes,
+        poly_modulus_degree=32768,
+        coeff_mod_bit_sizes=[60, 40, 40, 60],
     )
     # set scale
-    ctx.global_scale = global_scale
-    log("context created")
+    ctx.global_scale = 2**40
+    log.debug("context created")
 
     if gen_galois_keys:
         ctx.generate_galois_keys()
-        log("galois keys generated")
+        log.debug("galois keys generated")
     if not save_secret_key:
         # drop secret-key
         ctx_pk = ctx.secret_key()
-        ctx_pk = ctx.serialize()
         ctx.make_context_public()
-        log("secret key dropped")
+        log.debug("secret key dropped")
 
     ctx_id = storage.save_context(ctx.serialize())
-    log("context saved successfully!")
+    if not save_secret_key:
+        storage.save_context_pk(ctx_id, ctx_pk)
+    log.debug("context saved successfully!")
 
-    return ctx_id if save_secret_key else ctx_id, ctx_pk
+    return {"context": ctx_id}
 
 
 def start(host="0.0.0.0", port=8000):
