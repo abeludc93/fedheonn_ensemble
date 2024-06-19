@@ -17,7 +17,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 # Application modules
-from eeval.server.models import get_model, get_all_model_def, get_model_def
+from api.server.models import get_model, get_all_model_def, get_model_def
 from api.exceptions import *
 from api.server import storage
 

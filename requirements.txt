@@ -18,3 +18,5 @@ pyqt5==5.15.9
 fastapi==0.100.0
 # HTTP library
 requests==2.31.0
+# ASGI Server
+uvicorn==0.22.0
