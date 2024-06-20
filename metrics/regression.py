@@ -23,7 +23,7 @@ class RegressionMetrics(Metrics):
 
     def __init__(self, params: {} = None, dataset: str = None):
         super().__init__(params, dataset)
-        super()._extract_params(regression=True)
+        super()._extract_params()
         self.mse_test = None
         self.mse_percent_test = None
         self.r2_test = None

@@ -23,12 +23,8 @@ class ClassificationMetrics(Metrics):
 
     def __init__(self, params: {} = None, dataset: str = None):
         super().__init__(params, dataset)
-        super()._extract_params(regression=False)
-        self.y_train_true = None
-        self.y_train_pred = None
+        super()._extract_params()
         self.hits_train = None
-        self.y_test_true = None
-        self.y_test_pred = None
         self.hits_test = None
         self.clazz_report_train = None
         self.clazz_report_test = None
@@ -46,17 +42,15 @@ class ClassificationMetrics(Metrics):
         # Simulate predictions
         super().generate_metrics()
         # Calculate labeled predictions and assign to instance variables
-        self.y_train_true, self.y_train_pred = self._calculate_labeled_predictions(self.y_train, self.d_train)
-        self.y_test_true, self.y_test_pred = self._calculate_labeled_predictions(self.y_test, self.d_test)
         self.hits_train, self.hits_test = self._calculate_hit_predictions()
-        self.clazz_report_print[0], self.clazz_report_train = self._calculate_classification_report(self.y_train_true,
-                                                                                                    self.y_train_pred,
+        self.clazz_report_print[0], self.clazz_report_train = self._calculate_classification_report(self.d_train,
+                                                                                                    self.y_train,
                                                                                                     self.hits_train)
-        self.clazz_report_print[1], self.clazz_report_test = self._calculate_classification_report(self.y_test_true,
-                                                                                                   self.y_test_pred,
+        self.clazz_report_print[1], self.clazz_report_test = self._calculate_classification_report(self.d_test,
+                                                                                                   self.y_test,
                                                                                                    self.hits_test)
-        self.roc_train = self._calculate_roc_score(self.y_train_true, self.y_train_pred, self.y_train)
-        self.roc_test = self._calculate_roc_score(self.y_test_true, self.y_test_pred, self.y_test)
+        self.roc_train = self._calculate_roc_score(self.d_train, self.y_train, self.y_train)
+        self.roc_test = self._calculate_roc_score(self.d_test, self.y_test, self.y_test)
 
     def print_metrics(self):
         roc_train = "{0:.2%}".format(self.roc_train) if self.roc_train is not None else 'CLASSES UNAVAILABLE'
@@ -82,26 +76,14 @@ class ClassificationMetrics(Metrics):
             ClassificationMetrics._plot_roc_curve(self.y_test_true, self.y_test_pred, t_names, "Test set", ax4)
             plt.tight_layout()
             plt.show()
-
-    def _calculate_labeled_predictions(self, y_data, d_data) -> ():
-        # y_data (from dataset) and d_data (from predictions) should match in shape
-        assert y_data.shape == d_data.shape
-        # desired outputs should be a list of two elements, floats, low & high, as desired null and hit values
-        assert len(self.desired_outputs) == 2
-        # Low | High values: first represent values that do not match and the second for those that do
-        low, high = self.desired_outputs[0], self.desired_outputs[1]
-        # Generate numpy arrays with predictions and true values for future use on metric functions
-        arr_true = np.apply_along_axis(lambda arr, value: np.abs(arr - value).argmin(), 1, d_data, high)
-        arr_pred = np.apply_along_axis(lambda arr, value: np.abs(arr - value).argmin(), 1, y_data, high)
-        return arr_true, arr_pred
+        else:
+            log.info(f"Not plotting classification metrics for multiclass case: {self.n_classes}")
 
     def _calculate_hit_predictions(self) -> ():
         # Calculate number of hits for train & test data
         # That is when both labeled & predicted outputs overcome its respective thresholds
-        hits_train = np.sum(np.logical_and(self.y_train >= self.threshold, self.d_train >= self.d_threshold) |
-                            np.logical_and(self.y_train < self.threshold, self.d_train < self.d_threshold))
-        hits_test = np.sum(np.logical_and(self.y_test >= self.threshold, self.d_test >= self.d_threshold) |
-                           np.logical_and(self.y_test < self.threshold, self.d_test < self.d_threshold))
+        hits_train = np.sum(self.y_train == self.d_train)
+        hits_test = np.sum(self.y_test == self.d_test)
         return hits_train, hits_test
 
     def _calculate_classification_report(self, y_true, y_pred, hits) -> ():
@@ -122,13 +104,14 @@ class ClassificationMetrics(Metrics):
     def _calculate_roc_score(self, y_true, y_pred, y_prob) -> float | None:
         # List with all available classes
         target_names = [i for i in range(self.n_classes)]
-        if self.n_classes > 2:
-            # Turn threshold labels into probability data
-            y_pred = y_prob / y_prob.sum(axis=1, keepdims=1)
         # Check if true target data has all the available classes. If so, calculate ROC, else return None.
         n_classes_true = len(np.unique(y_true))
         if n_classes_true == self.n_classes:
-            return roc_auc_score(y_true, y_pred, labels=target_names, multi_class="ovr")
+            # One-hot multiclass
+            y = np.zeros((len(y_pred), n_classes_true))
+            for i in range(len(y_pred)):
+                y[i, y_pred[i]] = 1
+            return roc_auc_score(y_true, y, labels=target_names, multi_class="ovr")
         else:
             log.warn("ROC_SCORE: 'y_true' target data is unbalanced and does not contain all available classes.")
             return None

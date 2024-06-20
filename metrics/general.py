@@ -30,7 +30,7 @@ class Metrics:
         return f"Metrics(params={self.params}, dataset={self.dataset})"
 
     # Helper functions
-    def _extract_params(self, regression: bool = False):
+    def _extract_params(self):
         log.debug(f"Extracting parameters from dictionary: [length: {len(self.params)}]")
         self.x_train = self.params["x_train"]
         self.x_test = self.params["x_test"]
@@ -38,12 +38,8 @@ class Metrics:
         self.d_test = self.params["d_test"]
         self.y_train = self.params["y_train"]
         self.y_test = self.params["y_test"]
-        if not regression:  # mandatory classification parameters
-            self.threshold = self.params["threshold"]
-            self.d_threshold = self.params["d_threshold"]
-            self.desired_outputs = self.params["desired_outputs"]
-            self.classification = self.params["classification"]
-            self.n_classes = self.params["n_classes"]
+        self.classification = self.params["classification"]
+        self.n_classes = self.params["n_classes"]
 
     @abstractmethod
     def generate_metrics(self):
@@ -64,7 +60,7 @@ class Metrics:
 
     @staticmethod
     def fill_params(x_train=None, x_test=None, d_train=None, d_test=None, y_train=None, y_test=None,
-                    threshold=None, d_threshold=None, desired_outputs=None, classification=None, n_classes=None) -> dict:
+                    threshold=None, d_threshold=None, desired_outputs=None, classification=False, n_classes=None) -> dict:
         params = {"x_train": x_train, "x_test": x_test, "d_train": d_train, "d_test": d_test, "y_train": y_train,
                   "y_test": y_test, "threshold": threshold, "d_threshold": d_threshold,
                   "desired_outputs": desired_outputs, "classification": classification, "n_classes": n_classes}

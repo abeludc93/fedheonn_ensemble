@@ -112,3 +112,118 @@ MAE%: ['0.91%', '0.89%', '57457361446622.44%']
 R2: 0.9993
 
 2024-06-20 18:41:59,149 [FedHEONN] [ INFO]: Plotting metrics ...
+2024-06-20 20:20:21,300 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-20 20:24:40,339 [FedHEONN] [ERROR]: No y_train and/or y_test predictions: 'ClassificationMetrics' object has no attribute 'y_train_'
+2024-06-20 20:26:01,527 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-20 20:28:56,326 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-20 20:43:37,031 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-20 20:43:43,597 [FedHEONN] [ INFO]: Printing metrics ...
+2024-06-20 20:43:43,597 [FedHEONN] [ INFO]: [CLASSIFICATION REPORT DATASET [Dry_Bean_Dataset]
+	[TRAIN SET]
+              precision    recall  f1-score   support
+
+       lbl_0       0.93      0.86      0.89       927
+       lbl_1       1.00      0.99      0.99       361
+       lbl_2       0.90      0.92      0.91      1151
+       lbl_3       0.92      0.89      0.90      2503
+       lbl_4       0.95      0.95      0.95      1340
+       lbl_5       0.94      0.94      0.94      1408
+       lbl_6       0.82      0.88      0.85      1837
+
+    accuracy                           0.91      9527
+   macro avg       0.92      0.92      0.92      9527
+weighted avg       0.91      0.91      0.91      9527
+
+ROC: 95.14%
+	[TEST  SET]
+              precision    recall  f1-score   support
+
+       lbl_0       0.91      0.83      0.87       395
+       lbl_1       1.00      1.00      1.00       161
+       lbl_2       0.88      0.91      0.90       479
+       lbl_3       0.92      0.88      0.90      1043
+       lbl_4       0.96      0.95      0.95       588
+       lbl_5       0.94      0.94      0.94       619
+       lbl_6       0.82      0.90      0.86       799
+
+    accuracy                           0.90      4084
+   macro avg       0.92      0.91      0.92      4084
+weighted avg       0.91      0.90      0.91      4084
+
+ROC: 94.90%
+
+2024-06-20 20:43:43,597 [FedHEONN] [ INFO]: Plotting metrics ...
+2024-06-20 20:44:19,693 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-20 20:44:19,761 [FedHEONN] [ INFO]: Printing metrics ...
+2024-06-20 20:44:19,761 [FedHEONN] [ INFO]: [CLASSIFICATION REPORT DATASET [Dry_Bean_Dataset]
+	[TRAIN SET]
+              precision    recall  f1-score   support
+
+       lbl_0       0.93      0.86      0.89       927
+       lbl_1       1.00      0.99      0.99       361
+       lbl_2       0.90      0.92      0.91      1151
+       lbl_3       0.92      0.89      0.90      2503
+       lbl_4       0.95      0.95      0.95      1340
+       lbl_5       0.94      0.94      0.94      1408
+       lbl_6       0.82      0.88      0.85      1837
+
+    accuracy                           0.91      9527
+   macro avg       0.92      0.92      0.92      9527
+weighted avg       0.91      0.91      0.91      9527
+
+ROC: 95.15%
+	[TEST  SET]
+              precision    recall  f1-score   support
+
+       lbl_0       0.91      0.84      0.87       395
+       lbl_1       1.00      1.00      1.00       161
+       lbl_2       0.89      0.91      0.90       479
+       lbl_3       0.92      0.88      0.90      1043
+       lbl_4       0.96      0.95      0.95       588
+       lbl_5       0.94      0.94      0.94       619
+       lbl_6       0.82      0.90      0.86       799
+
+    accuracy                           0.91      4084
+   macro avg       0.92      0.92      0.92      4084
+weighted avg       0.91      0.91      0.91      4084
+
+ROC: 94.96%
+
+2024-06-20 20:44:19,761 [FedHEONN] [ INFO]: Plotting metrics ...
+2024-06-20 20:45:31,545 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-20 20:45:33,883 [FedHEONN] [ INFO]: Printing metrics ...
+2024-06-20 20:45:33,883 [FedHEONN] [ INFO]: [CLASSIFICATION REPORT DATASET [Dry_Bean_Dataset]
+	[TRAIN SET]
+              precision    recall  f1-score   support
+
+       lbl_0       0.93      0.86      0.89       927
+       lbl_1       1.00      0.99      0.99       361
+       lbl_2       0.90      0.93      0.91      1151
+       lbl_3       0.92      0.89      0.90      2503
+       lbl_4       0.95      0.95      0.95      1340
+       lbl_5       0.94      0.94      0.94      1408
+       lbl_6       0.82      0.88      0.85      1837
+
+    accuracy                           0.91      9527
+   macro avg       0.92      0.92      0.92      9527
+weighted avg       0.91      0.91      0.91      9527
+
+ROC: 95.16%
+	[TEST  SET]
+              precision    recall  f1-score   support
+
+       lbl_0       0.91      0.83      0.87       395
+       lbl_1       1.00      1.00      1.00       161
+       lbl_2       0.88      0.91      0.90       479
+       lbl_3       0.92      0.88      0.90      1043
+       lbl_4       0.96      0.95      0.95       588
+       lbl_5       0.94      0.93      0.94       619
+       lbl_6       0.82      0.90      0.86       799
+
+    accuracy                           0.90      4084
+   macro avg       0.92      0.91      0.92      4084
+weighted avg       0.91      0.90      0.91      4084
+
+ROC: 94.91%
+
+2024-06-20 20:45:33,884 [FedHEONN] [ INFO]: Plotting metrics ...

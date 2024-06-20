@@ -19,6 +19,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
 from algorithms.client.classifier import FedHEONN_classifier
 from algorithms.coordinator.base import FedHEONN_coordinator
+from metrics.general import Metrics
 
 ctx = ts.context(
             ts.SCHEME_TYPE.CKKS,
@@ -106,5 +107,9 @@ for client in clients:
 
 # Predictions for the test set using one client    
 test_y = clients[0].predict(test_X)
-
+train_y = clients[0].predict(train_X)
 print("Test accuracy: %0.2f%%" % (100*accuracy_score(test_t, test_y)))
+
+params = Metrics.fill_params(x_train=train_X, x_test=test_X, d_train=train_t, d_test=test_t,
+                             y_train=train_y.T, y_test=test_y.T, classification=True, n_classes=n_classes)
+Metrics.run(params, 'Dry_Bean_Dataset')
