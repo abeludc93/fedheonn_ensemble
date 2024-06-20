@@ -25,7 +25,7 @@ class FedHEONN_classifier(FedHEONN_client):
 
         # Transforms the values (0, 1) to (0.05, 0.95) to avoid the problem
         # of the inverse of the activation function at the extremes
-        t_onehot = t_onehot * 0.9 + 0.05
+        t_onehot = t_onehot * 0.90 + 0.05
 
         # A model is generated for each class
         for c in range(0, n_classes):
@@ -47,5 +47,5 @@ class FedHEONN_classifier(FedHEONN_client):
             The predicted classes: values between 0 and n_classes-1
         """
         y_onehot = self._predict(X)
-        y = np.argmax(y_onehot, axis=0)
+        y = np.apply_along_axis(lambda arr, value: np.abs(arr - value).argmin(), axis=0, arr=y_onehot, value=0.95)
         return y

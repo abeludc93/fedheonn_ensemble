@@ -18,7 +18,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error
 from algorithms.client.regressor import FedHEONN_regressor
 from algorithms.coordinator.base import FedHEONN_coordinator
-
+from metrics.general import Metrics
 
 # Configuring the TenSEAL context for the CKKS encryption scheme
 ctx = ts.context(
@@ -90,6 +90,10 @@ for client in clients:
 
 # Predictions for the test set using one client    
 test_y = clients[0].predict(test_X)
-
-# Global MSE for the 3 outputs
 print("Test MSE: %0.8f" % (100 * mean_squared_error(test_t, test_y.T)))
+train_y = clients[0].predict(train_X)
+
+params = Metrics.fill_params(x_train=train_X, x_test=test_X, d_train=train_t, d_test=test_t, y_train=train_y.T, y_test=test_y.T)
+Metrics.run(params, 'carbon_nanotubes')
+
+
