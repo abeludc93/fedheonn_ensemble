@@ -13,6 +13,7 @@ performed by the clients.
 import time
 import tenseal as ts
 import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error
@@ -28,19 +29,45 @@ ctx = ts.context(
           )
 ctx.generate_galois_keys()
 ctx.global_scale = 2**40
-#ctx_pk = ctx.secret_key()
-#ctx.make_context_public()
 
-print(f"Tenseal context public?: {ctx.is_public()}")
-print(f"Tenseal context private?: {ctx.is_private()}")
-print(f"Tenseal context has secret key?: {ctx.has_secret_key()}")
-print(f"Tenseal context has public key?: {ctx.has_public_key()}")
+
+# Function to create bootstrap samples
+def bootstrap_sample(X, y):
+    n_samples = X.shape[1]
+    indices = np.random.choice(n_samples, size=n_samples, replace=True)
+    return X[:, indices], y[indices, :]
+
+
+# Bagging function
+def bagging(X, y, estimators, cliente):
+    Mc_lst, Usc_lst = [], []
+    for _ in range(estimators):
+        X_sample, y_sample = bootstrap_sample(X, y)
+        cliente.fit(X_sample, y_sample)
+        Mc, USc = client.get_param()
+        Mc_lst.append(Mc)
+        Usc_lst.append(USc)
+    return Mc_lst, Usc_lst
+
+
+# Predict vote average
+def predict(array, n_out, n_est):
+    subarrays = np.vsplit(array, array.shape[0] // n_out)
+    vote_avg = np.sum(subarrays, axis=0) / n_est
+    return vote_avg
+
+
+# Bagging estimators
+n_estimators = 10
+
+n_outputs = 3
+
 # Number of clients
 n_clients = 20
 
 # The data set is loaded (Carbon Nanotubes)
 # Source: https://archive.ics.uci.edu/dataset/448/carbon+nanotubes
-Data = pd.read_csv('./datasets/carbon_nanotubes.csv', delimiter=';')
+Data = pd.read_csv('../datasets/carbon_nanotubes.csv', delimiter=';')
 Inputs = Data.iloc[:, :-3].to_numpy()
 Targets = Data.iloc[:, -3:].to_numpy()  # 3 outputs to predict
 train_X, test_X, train_t, test_t = train_test_split(Inputs, Targets, test_size=0.3, random_state=42)
@@ -68,23 +95,21 @@ for i in range(0, n_clients):
 # Create the coordinator
 coordinator = FedHEONN_coordinator(f='lin', lam=0.01)
 
-
 start_time = time.time()
-# Fit the clients with their local data    
+# Fit the clients with their local data
 M = []
 US = []
 for i, client in enumerate(clients):
     rang = range(int(i * n / n_clients), int(i * n / n_clients) + int(n / n_clients))
     print('Training client:', i + 1, 'of', n_clients, '(', min(rang), '-', max(rang), ')')
-    client.fit(train_X[:, rang], train_t[rang, :])
-    M_c, US_c = client.get_param()
-    M.append(M_c)
-    US.append(US_c)
+    lst_Mc, lst_USc = bagging(train_X[:, rang], train_t[rang, :], n_estimators, client)
+    M.extend(lst_Mc)
+    US.extend(lst_USc)
 
 # The coordinator aggregates the information provided by the clients
 # to obtain the weights of the collaborative model
+# TODO: Agregar cada estimador por separado?
 coordinator.aggregate(M, US)
-
 end_time = time.time()
 
 print(f"Tiempo transcurrido:  {end_time-start_time} (s)")
@@ -94,12 +119,16 @@ print(f"Tiempo transcurrido:  {end_time-start_time} (s)")
 for client in clients:
     client.set_weights(coordinator.send_weights())
 
-# Predictions for the test set using one client    
+# BAGGING
 test_y = clients[0].predict(test_X)
-print("Test MSE: %0.8f" % (100 * mean_squared_error(test_t, test_y.T)))
 train_y = clients[0].predict(train_X)
+
+test_y = predict(test_y, n_outputs, n_estimators)
+train_y = predict(train_y, n_outputs, n_estimators)
+
+# Predictions for the test set using one client
+print("Test MSE: %0.8f" % (100 * mean_squared_error(test_t, test_y.T)))
+
 
 params = Metrics.fill_params(x_train=train_X, x_test=test_X, d_train=train_t, d_test=test_t, y_train=train_y.T, y_test=test_y.T)
 Metrics.run(params, 'carbon_nanotubes')
-
-
