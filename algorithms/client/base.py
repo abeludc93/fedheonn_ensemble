@@ -42,7 +42,8 @@ class FedHEONN_client:
             The weights include the bias as first element.
     """
 
-    def __init__(self,  f='logs', encrypted=True, sparse=True, context=None):
+    def __init__(self,  f='logs', encrypted: bool = True, sparse: bool = True, context=None, bagging: bool = False,
+                 n_estimators: int = None):
         """Constructor method"""
         self.f, self.f_inv, self.fderiv = _load_act_fn(f)
         self.encrypted = encrypted  # Encryption hyperparameter
@@ -51,6 +52,8 @@ class FedHEONN_client:
         self.US        = []
         self.W         = None
         self.context   = context
+        self.bagging = bagging
+        self.n_estimators = n_estimators
 
     def _fit(self, X, d):
         """Private method to fit the model to data matrix X and target(s) d.
@@ -168,3 +171,15 @@ class FedHEONN_client:
         context : tenseal context
         """
         self.context = context
+
+    def clean_client(self):
+        self.M         = []
+        self.US        = []
+        self.W         = None
+
+    @staticmethod
+    def bootstrap_sample(X, d):
+        """Function to create bootstrap samples"""
+        n_samples = X.shape[1]
+        indices = np.random.choice(n_samples, size=n_samples, replace=True)
+        return X[:, indices], d[indices, :]

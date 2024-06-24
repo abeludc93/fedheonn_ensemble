@@ -40,15 +40,16 @@ class FedHEONN_coordinator:
             The weights includes the bias as first element.
     """
 
-    def __init__(self, f='logs', lam=0, encrypted=True, sparse=True):
+    def __init__(self, f='logs', lam=0, encrypted=True, sparse=True, bagging: bool = False):
         """Constructor method"""
         self.f, self.f_inv, self.fderiv = _load_act_fn(f)
         self.lam = lam  # Regularization hyperparameter
         self.encrypted = encrypted  # Encryption hyperparameter
         self.sparse = sparse  # Sparse hyperparameter
         self.W = []
+        self.bagging = bagging
 
-    def aggregate(self, M_list, US_list):
+    def _aggregate(self, M_list, US_list):
         """Method to aggregate the models of the clients in the federated learning.
 
         Parameters
@@ -62,6 +63,7 @@ class FedHEONN_coordinator:
         # Number of classes
         n_classes = len(M_list[0])
 
+        W_out = []
         # For each class the results of each client are aggregated
         for c in range(0, n_classes):
 
@@ -98,7 +100,9 @@ class FedHEONN_coordinator:
                 else:
                     w = U @ (np.diag(1 / (S * S + self.lam * (np.ones(np.size(S))))) @ (U.transpose() @ M))
 
-            self.W.append(w)
+            W_out.append(w)
+
+        return W_out
 
     def send_weights(self):
         """ Method to get the weights of the aggregated model
@@ -111,3 +115,13 @@ class FedHEONN_coordinator:
             The weights include the bias as first element.
         """
         return self.W
+
+    def aggregate(self, M_list, US_list):
+        if self.bagging:
+            n_estimators = len(US_list[0])
+            for i in range(n_estimators):
+                M_base_lst = [M[i] for M in M_list]
+                US_base_lst = [US[i] for US in US_list]
+                self.W.append(self._aggregate(M_base_lst, US_base_lst))
+        else:
+            self.W = self._aggregate(M_list, US_list)

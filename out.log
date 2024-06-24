@@ -227,3 +227,170 @@ weighted avg       0.91      0.90      0.91      4084
 ROC: 94.91%
 
 2024-06-20 20:45:33,884 [FedHEONN] [ INFO]: Plotting metrics ...
+2024-06-21 12:02:36,938 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-21 12:02:37,014 [FedHEONN] [ INFO]: Printing metrics ...
+2024-06-21 12:02:37,014 [FedHEONN] [ INFO]: [CLASSIFICATION REPORT DATASET [Dry_Bean_Dataset]
+	[TRAIN SET]
+              precision    recall  f1-score   support
+
+       lbl_0       0.93      0.86      0.89       927
+       lbl_1       1.00      0.99      0.99       361
+       lbl_2       0.90      0.92      0.91      1151
+       lbl_3       0.92      0.89      0.90      2503
+       lbl_4       0.95      0.95      0.95      1340
+       lbl_5       0.94      0.94      0.94      1408
+       lbl_6       0.82      0.88      0.85      1837
+
+    accuracy                           0.91      9527
+   macro avg       0.92      0.92      0.92      9527
+weighted avg       0.91      0.91      0.91      9527
+
+ROC: 95.15%
+	[TEST  SET]
+              precision    recall  f1-score   support
+
+       lbl_0       0.91      0.84      0.87       395
+       lbl_1       1.00      1.00      1.00       161
+       lbl_2       0.88      0.91      0.90       479
+       lbl_3       0.92      0.88      0.90      1043
+       lbl_4       0.96      0.95      0.95       588
+       lbl_5       0.94      0.94      0.94       619
+       lbl_6       0.82      0.90      0.86       799
+
+    accuracy                           0.91      4084
+   macro avg       0.92      0.92      0.92      4084
+weighted avg       0.91      0.91      0.91      4084
+
+ROC: 94.92%
+
+2024-06-21 12:02:37,014 [FedHEONN] [ INFO]: Plotting metrics ...
+2024-06-21 12:02:37,014 [FedHEONN] [ INFO]: Not plotting classification metrics for multiclass case: 7
+2024-06-21 12:03:24,660 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-21 12:03:24,722 [FedHEONN] [ INFO]: Printing metrics ...
+2024-06-21 12:03:24,722 [FedHEONN] [ INFO]: [CLASSIFICATION REPORT DATASET [Dry_Bean_Dataset]
+	[TRAIN SET]
+              precision    recall  f1-score   support
+
+       lbl_0       0.93      0.86      0.89       927
+       lbl_1       1.00      0.99      0.99       361
+       lbl_2       0.90      0.92      0.91      1151
+       lbl_3       0.92      0.89      0.90      2503
+       lbl_4       0.95      0.95      0.95      1340
+       lbl_5       0.94      0.94      0.94      1408
+       lbl_6       0.82      0.88      0.85      1837
+
+    accuracy                           0.91      9527
+   macro avg       0.92      0.92      0.92      9527
+weighted avg       0.91      0.91      0.91      9527
+
+ROC: 95.14%
+	[TEST  SET]
+              precision    recall  f1-score   support
+
+       lbl_0       0.91      0.84      0.87       395
+       lbl_1       1.00      1.00      1.00       161
+       lbl_2       0.88      0.91      0.90       479
+       lbl_3       0.92      0.88      0.90      1043
+       lbl_4       0.96      0.95      0.95       588
+       lbl_5       0.94      0.94      0.94       619
+       lbl_6       0.82      0.90      0.86       799
+
+    accuracy                           0.91      4084
+   macro avg       0.92      0.92      0.92      4084
+weighted avg       0.91      0.91      0.91      4084
+
+ROC: 94.92%
+
+2024-06-21 12:03:24,722 [FedHEONN] [ INFO]: Plotting metrics ...
+2024-06-21 12:03:24,722 [FedHEONN] [ INFO]: Not plotting classification metrics for multiclass case: 7
+2024-06-21 12:23:21,615 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-21 12:23:21,622 [FedHEONN] [ INFO]: Printing metrics ...
+2024-06-21 12:23:21,622 [FedHEONN] [ INFO]: [REGRESSION REPORT DATASET [carbon_nanotubes]
+	[TRAIN SET]
+MSE: 7.8316e-05
+MAE%: ['0.86%', '0.86%', '84087194659566.61%']
+R2: 0.9991
+	[TEST  SET]
+MSE: 5.7490e-05
+MAE%: ['0.91%', '0.89%', '57457358969902.91%']
+R2: 0.9993
+
+2024-06-21 12:23:21,622 [FedHEONN] [ INFO]: Plotting metrics ...
+2024-06-21 12:23:33,650 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-21 12:23:33,650 [FedHEONN] [ INFO]: Printing metrics ...
+2024-06-21 12:23:33,650 [FedHEONN] [ INFO]: [REGRESSION REPORT DATASET [carbon_nanotubes]
+	[TRAIN SET]
+MSE: 7.8316e-05
+MAE%: ['0.86%', '0.86%', '84087199445120.83%']
+R2: 0.9991
+	[TEST  SET]
+MSE: 5.7490e-05
+MAE%: ['0.91%', '0.89%', '57457361586996.36%']
+R2: 0.9993
+
+2024-06-21 12:23:33,650 [FedHEONN] [ INFO]: Plotting metrics ...
+2024-06-21 12:31:27,766 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-21 12:31:27,770 [FedHEONN] [ INFO]: Printing metrics ...
+2024-06-21 12:31:27,770 [FedHEONN] [ INFO]: [REGRESSION REPORT DATASET [carbon_nanotubes]
+	[TRAIN SET]
+MSE: 7.8316e-05
+MAE%: ['0.86%', '0.86%', '84087197144713.47%']
+R2: 0.9991
+	[TEST  SET]
+MSE: 5.7490e-05
+MAE%: ['0.91%', '0.89%', '57457358694060.31%']
+R2: 0.9993
+
+2024-06-21 12:31:27,770 [FedHEONN] [ INFO]: Plotting metrics ...
+2024-06-21 13:09:13,166 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-21 13:09:13,174 [FedHEONN] [ INFO]: Printing metrics ...
+2024-06-21 13:09:13,174 [FedHEONN] [ INFO]: [REGRESSION REPORT DATASET [carbon_nanotubes]
+	[TRAIN SET]
+MSE: 7.8316e-05
+MAE%: ['0.86%', '0.86%', '84087199034540.27%']
+R2: 0.9991
+	[TEST  SET]
+MSE: 5.7490e-05
+MAE%: ['0.91%', '0.89%', '57457361048768.73%']
+R2: 0.9993
+
+2024-06-21 13:09:13,174 [FedHEONN] [ INFO]: Plotting metrics ...
+2024-06-21 13:16:47,726 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-21 13:16:47,729 [FedHEONN] [ INFO]: Printing metrics ...
+2024-06-21 13:16:47,729 [FedHEONN] [ INFO]: [REGRESSION REPORT DATASET [carbon_nanotubes]
+	[TRAIN SET]
+MSE: 7.8323e-05
+MAE%: ['0.85%', '0.86%', '84093246602357.31%']
+R2: 0.9991
+	[TEST  SET]
+MSE: 5.7505e-05
+MAE%: ['0.90%', '0.89%', '57478515530663.15%']
+R2: 0.9993
+
+2024-06-21 13:16:47,729 [FedHEONN] [ INFO]: Plotting metrics ...
+2024-06-21 13:33:23,321 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-21 13:33:23,327 [FedHEONN] [ INFO]: Printing metrics ...
+2024-06-21 13:33:23,327 [FedHEONN] [ INFO]: [REGRESSION REPORT DATASET [carbon_nanotubes]
+	[TRAIN SET]
+MSE: 7.8323e-05
+MAE%: ['0.85%', '0.86%', '84093241910492.94%']
+R2: 0.9991
+	[TEST  SET]
+MSE: 5.7505e-05
+MAE%: ['0.90%', '0.89%', '57478513529049.33%']
+R2: 0.9993
+
+2024-06-21 13:33:23,327 [FedHEONN] [ INFO]: Plotting metrics ...
+2024-06-21 17:05:33,965 [FedHEONN] [ INFO]: Generating metric data ...
+2024-06-21 17:05:33,971 [FedHEONN] [ INFO]: Printing metrics ...
+2024-06-21 17:05:33,971 [FedHEONN] [ INFO]: [REGRESSION REPORT DATASET [carbon_nanotubes]
+	[TRAIN SET]
+MSE: 7.8316e-05
+MAE%: ['0.86%', '0.86%', '84087199130802.59%']
+R2: 0.9991
+	[TEST  SET]
+MSE: 5.7490e-05
+MAE%: ['0.91%', '0.89%', '57457362386736.79%']
+R2: 0.9993
+
+2024-06-21 17:05:33,971 [FedHEONN] [ INFO]: Plotting metrics ...
