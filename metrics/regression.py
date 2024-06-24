@@ -98,6 +98,8 @@ class RegressionMetrics(Metrics):
     @staticmethod
     def _plot_prediction_err_display(y_true, y_pred, axes):
         # Graphic prediction error
+        print(f"y_true: {y_true.shape}")
+        print(f"y_pred: {y_pred.shape}")
         PredictionErrorDisplay.from_predictions(y_true, y_pred, ax=axes)
 
     @staticmethod

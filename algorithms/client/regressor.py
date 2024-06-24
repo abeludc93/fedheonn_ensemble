@@ -21,6 +21,9 @@ class FedHEONN_regressor(FedHEONN_client):
         t : ndarray of shape (n_samples, n_outputs)
             The target values.
         """
+
+        X, t = self._preprocess(X, t)
+
         n, n_outputs = t.shape
         # Bagging
         if self.bagging and self.n_estimators > 1:
@@ -54,6 +57,8 @@ class FedHEONN_regressor(FedHEONN_client):
         y : ndarray of shape (n_samples, n_outputs)
             The predicted values.
         """
+        X = self._reshape(X).T
+
         if self.bagging and self.n_estimators > 1:
             y = []
             W_orig = self.W
@@ -64,4 +69,5 @@ class FedHEONN_regressor(FedHEONN_client):
             self.W = W_orig
         else:
             y = self._predict(X)
-        return y
+
+        return self._reshape(y)

@@ -183,3 +183,13 @@ class FedHEONN_client:
         n_samples = X.shape[1]
         indices = np.random.choice(n_samples, size=n_samples, replace=True)
         return X[:, indices], d[indices, :]
+
+    @staticmethod
+    def _reshape(arr):
+        return arr.reshape(len(arr), 1) if arr.ndim == 1 else arr
+
+    @staticmethod
+    def _preprocess(X, t):
+        X = FedHEONN_client._reshape(X).T
+        t = FedHEONN_client._reshape(t)
+        return X, t
