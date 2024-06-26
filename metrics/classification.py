@@ -67,13 +67,13 @@ class ClassificationMetrics(Metrics):
             fig_cm.suptitle(f"Confusion Matrix Display for dataset: {self.dataset}", fontsize=14)
             t_names = [f"lbl_{i}" for i in range(self.n_classes)]
             ax1.set_title("Train set")
-            ClassificationMetrics._plot_confusion_matrix(self.y_train_true, self.y_train_pred, t_names, ax1)
+            ClassificationMetrics._plot_confusion_matrix(self.d_train, self.y_train, t_names, ax1)
             ax2.set_title("Test set")
-            ClassificationMetrics._plot_confusion_matrix(self.y_test_true, self.y_test_pred, t_names, ax2)
+            ClassificationMetrics._plot_confusion_matrix(self.d_test, self.y_test, t_names, ax2)
             fig_roc, (ax3, ax4) = plt.subplots(1, 2)
             fig_roc.suptitle(f"ROC Curve Display for dataset: {self.dataset}", fontsize=14)
-            ClassificationMetrics._plot_roc_curve(self.y_train_true, self.y_train_pred, t_names, "Train set", ax3)
-            ClassificationMetrics._plot_roc_curve(self.y_test_true, self.y_test_pred, t_names, "Test set", ax4)
+            ClassificationMetrics._plot_roc_curve(self.d_train, self.y_train, t_names, "Train set", ax3)
+            ClassificationMetrics._plot_roc_curve(self.d_test, self.y_test, t_names, "Test set", ax4)
             plt.tight_layout()
             plt.show()
         else:
@@ -108,10 +108,12 @@ class ClassificationMetrics(Metrics):
         n_classes_true = len(np.unique(y_true))
         if n_classes_true == self.n_classes:
             # One-hot multiclass
+            y_t = np.zeros((len(y_true), n_classes_true))
             y = np.zeros((len(y_pred), n_classes_true))
             for i in range(len(y_pred)):
+                y_t[i, y_true[i]] = 1
                 y[i, y_pred[i]] = 1
-            return roc_auc_score(y_true, y, labels=target_names, multi_class="ovr")
+            return roc_auc_score(y_t, y, labels=target_names, multi_class="ovr")
         else:
             log.warn("ROC_SCORE: 'y_true' target data is unbalanced and does not contain all available classes.")
             return None

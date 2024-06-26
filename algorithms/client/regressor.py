@@ -70,4 +70,4 @@ class FedHEONN_regressor(FedHEONN_client):
         else:
             y = self._predict(X)
 
-        return self._reshape(y)
+        return y.T

@@ -71,7 +71,12 @@ test_y = clients[0].predict(test_X)
 train_y = clients[0].predict(train_X)
 
 # Predictions for the test set using one client
-print("Test MSE: %0.8f" % (100 * mean_squared_error(test_t, test_y.T)))
+print("Test MSE: %0.8f" % (100 * mean_squared_error(test_t, test_y)))
 
-params = Metrics.fill_params(x_train=train_X, x_test=test_X, d_train=train_t, d_test=test_t, y_train=train_y.T, y_test=test_y.T)
+print(f"train_y: {train_y.shape}")
+print(f"test_y: {test_y.shape}")
+print(f"train_t: {train_t.shape}")
+print(f"test_t: {test_t.shape}")
+
+params = Metrics.fill_params(x_train=train_X, x_test=test_X, d_train=train_t, d_test=test_t, y_train=train_y, y_test=test_y)
 Metrics.run(params, 'make_regression')
