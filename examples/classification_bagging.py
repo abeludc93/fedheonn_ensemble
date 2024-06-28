@@ -7,6 +7,7 @@ Example of using FedHEONN method for a multiclass classification task.
 # License: GPL-3.0-only
 
 import numpy as np
+import pandas as pd
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -30,7 +31,7 @@ iid = True
 # Bagging
 bag = True
 # Number of estimators
-n_estimators = 200
+n_estimators = 20
 
 ctx = None
 if enc:
@@ -45,7 +46,11 @@ if enc:
     ctx.global_scale = 2 ** 40
 
 # Create and split classification dataset
-X, y = make_classification(n_samples=1000, n_features=10, n_classes=2, random_state=42)
+Data = pd.read_excel('../datasets/Dry_Bean_Dataset.xlsx', sheet_name='Dry_Beans_Dataset')
+Data['Class'] = Data['Class'].map({'BARBUNYA': 0, 'BOMBAY': 1, 'CALI': 2, 'DERMASON': 3, 'HOROZ': 4, 'SEKER': 5, 'SIRA': 6})
+X = Data.iloc[:, :-1].to_numpy()
+y = Data.iloc[:, -1].to_numpy()
+#X, y = make_classification(n_samples=1000, n_features=10, n_classes=2, random_state=42)
 train_X, test_X, train_t, test_t = train_test_split(X, y, test_size=0.3, random_state=42)
 
 # Data normalization (z-score): mean 0 and std 1
@@ -90,7 +95,7 @@ for i in range(0, n_clients):
     client = FedHEONN_classifier(f=f_act, encrypted=enc, sparse=spr, context=ctx, bagging=bag, n_estimators=n_estimators)
     print('Training client:', i+1, 'of', n_clients, '(', min(rang), '-', max(rang), ')')
     # Fit client local data
-    client.fit(train_X[rang], train_t[rang])
+    client.fit(train_X[rang], t_onehot[rang])
     lst_clients.append(client)
 
 # PERFORM GLOBAL FIT

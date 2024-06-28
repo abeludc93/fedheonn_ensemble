@@ -6,6 +6,7 @@ Example of using FedHEONN method for a regression task.
 # Author: Oscar Fontenla-Romero <oscar.fontenla@udc.es>
 # License: GPL-3.0-only
 
+import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.datasets import make_regression
@@ -43,7 +44,10 @@ if enc:
     ctx.global_scale = 2 ** 40
 
 # Create and split regression dataset
-X, y = make_regression(n_samples=1000, n_features=2, n_targets=1, noise=5, random_state=42)
+Data = pd.read_csv('../datasets/carbon_nanotubes.csv', delimiter=';')
+X = Data.iloc[:, :-3].to_numpy()
+y = Data.iloc[:, -3:].to_numpy()
+#X, y = make_regression(n_samples=1000, n_features=2, n_targets=1, noise=5, random_state=42)
 train_X, test_X, train_t, test_t = train_test_split(X, y, test_size=0.3, random_state=42)
 
 # Data normalization (z-score): mean 0 and std 1

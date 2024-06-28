@@ -16,7 +16,7 @@ from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 
 # EXAMPLE AND MODEL HYPERPARAMETERS
 # Number of clients
-n_clients = 100
+n_clients = 200
 # Encryption
 enc = True
 # Sparse matrices
