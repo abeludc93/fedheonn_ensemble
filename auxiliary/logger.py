@@ -3,13 +3,11 @@
 """
 auxiliary.logger
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Logger module. It runs as a singleton as Python automatically
-loads and runs the module once imported elsewhere. Logs both
-to sys_out and to a log file on the current directory.
-
-:author: Abel
-:version: 0.0.2
+Logger module.
+It runs as a singleton as Python automatically loads and runs the module once imported elsewhere.
+Logs both to sys_out and to a log file on the current directory.
 """
+
 # Standard libraries
 import logging
 import sys

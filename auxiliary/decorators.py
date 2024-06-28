@@ -3,12 +3,9 @@
 """
 auxiliary.decorators
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This module contains functions used as decorators,
-in order to clamp ranges or modify existing functions.
-
-:author: Abel
-:version: 0.0.2
+This module exposes different decorators, pe., to clamp ranges or modify existing functions.
 """
+
 # Standard libraries
 from time import perf_counter
 from typing import Callable
@@ -27,7 +24,6 @@ def clamp_positive_range(func: Callable) -> Callable:
     :return: decorated function
     """
     lowest = sys_flt.epsilon
-
     def _wrapper(x):
         if type(x) is list or type(x) is np.ndarray:
             lst = []
@@ -50,13 +46,13 @@ def clamp_unitary_range(func: Callable) -> Callable:
     """
     lowest = sys_flt.epsilon
     highest = 1 - sys_flt.epsilon
-
     def _wrapper(x):
         if type(x) is list or type(x) is np.ndarray:
             lst = []
             for item in x:
                 if not 0 < item < 1:
-                    lst.append(lowest) if item <= 0 else highest
+                    replace = lowest if item <= 0 else highest
+                    lst.append(replace)
                 else:
                     lst.append(item)
             return func(lst)

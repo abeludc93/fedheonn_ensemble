@@ -5,42 +5,11 @@
 import numpy as np
 import scipy as sp
 # Application modules
-from algorithms.utils import _load_act_fn
+from algorithm.activation_functions import _load_act_fn
 
 
 class FedHEONN_coordinator:
-    """FedHEONN coordinator class.
-
-    Parameters
-    ----------
-    f : {'logs','relu','lin'}, default='logs'
-        Activation function for the neurons of the clients.
-
-    lam: regularization term, default=0
-        Strength of the L2 regularization term.
-
-    encrypted: bool, default=True
-        Indicates if homomorphic encryption is used in the clients or not.
-
-    sparse: bool, default=True
-        Indicates whether sparse matrices will be used during the aggregation process.
-        Recommended for large data sets.
-
-    Attributes
-    ----------
-        lam : float
-            Strength of the L2 regularization term.
-        encrypted : bool
-            Specifies whether the clients are using homomorphic encryption or not.
-        sparse : bool
-            Specifies whether the coordinator is using internal sparse matrices or not.
-        W : list of weights of shape (n_outputs,).
-            Each element of the list is a CKKSVector (encrypted case) or ndarray (not encrypted)
-            containing the weights associated with the ith output neuron.
-            The weights includes the bias as first element.
-    """
-
-    def __init__(self, f='logs', lam=0, encrypted=True, sparse=True, bagging: bool = False):
+    def __init__(self, f: str='logs', lam: float=0, encrypted: bool=True, sparse: bool=True, bagging: bool=False):
         """Constructor method"""
         self.f, self.f_inv, self.fderiv = _load_act_fn(f)
         self.lam = lam  # Regularization hyperparameter
@@ -50,20 +19,12 @@ class FedHEONN_coordinator:
         self.bagging = bagging
 
     def _aggregate(self, M_list, US_list):
-        """Method to aggregate the models of the clients in the federated learning.
-
-        Parameters
-        ----------
-        M_list : list of shape (n_clients,)
-            The list of m terms computed previously by a a set o clients.
-
-        US_list : list of shape (n_clients,)
-            The list of U*S terms computed previously by a a set o clients.
-        """
         # Number of classes
         n_classes = len(M_list[0])
 
+        # Optimal weights
         W_out = []
+
         # For each class the results of each client are aggregated
         for c in range(0, n_classes):
 
@@ -105,15 +66,6 @@ class FedHEONN_coordinator:
         return W_out
 
     def send_weights(self):
-        """ Method to get the weights of the aggregated model
-
-        Returns
-        -------
-        W : list of ndarray of shape (n_outputs,)
-            Each element of the list is a CKKSVector (encrypted case) or ndarray (not encrypted)
-            containing the weights associated with the ith output neuron.
-            The weights include the bias as first element.
-        """
         return self.W
 
     def aggregate(self, M_list, US_list):
