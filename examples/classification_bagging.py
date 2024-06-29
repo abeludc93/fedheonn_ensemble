@@ -17,7 +17,7 @@ from examples.utils import global_fit
 
 # EXAMPLE AND MODEL HYPERPARAMETERS
 # Number of clients
-n_clients = 10
+n_clients = 2
 # Encryption
 enc = False
 # Sparse matrices
@@ -31,7 +31,7 @@ iid = True
 # Bagging
 bag = True
 # Number of estimators
-n_estimators = 20
+n_estimators = 3
 
 ctx = None
 if enc:

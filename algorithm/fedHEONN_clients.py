@@ -213,9 +213,11 @@ class FedHEONN_classifier(FedHEONN_client):
             W_orig = self.W
             for i in range(self.n_estimators):
                 self.W = W_orig[i]
-                y.append(np.apply_along_axis(lambda arr, value: np.abs(arr - value).argmin(), axis=0, arr=self._predict(X), value=0.95))
+                pred = self._predict(X)
+                y.append(np.apply_along_axis(lambda arr, val: np.abs(arr - val).argmin(), axis=0, arr=pred, val=0.95))
             y = np.array(y)
-            y = (np.count_nonzero(y, axis=0) >= self.n_estimators / 2).astype(int)
+            y, _ = sp.stats.mode(y, axis=0)
+            y = y.flatten()
             self.W = W_orig
         else:
             y_onehot = self._predict(X)

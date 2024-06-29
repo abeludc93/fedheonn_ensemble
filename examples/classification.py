@@ -18,7 +18,7 @@ from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 # Number of clients
 n_clients = 200
 # Encryption
-enc = True
+enc = False
 # Sparse matrices
 spr = True
 # Regularization
