@@ -9,14 +9,14 @@ from algorithm.activation_functions import _load_act_fn
 
 
 class FedHEONN_coordinator:
-    def __init__(self, f: str='logs', lam: float=0, encrypted: bool=True, sparse: bool=True, bagging: bool=False):
+    def __init__(self, f: str='logs', lam: float=0, encrypted: bool=True, sparse: bool=True, ensemble: {}=None ):
         """Constructor method"""
         self.f, self.f_inv, self.fderiv = _load_act_fn(f)
-        self.lam = lam  # Regularization hyperparameter
-        self.encrypted = encrypted  # Encryption hyperparameter
-        self.sparse = sparse  # Sparse hyperparameter
-        self.W = []
-        self.bagging = bagging
+        self.lam        = lam       # Regularization hyperparameter
+        self.encrypted  = encrypted # Encryption hyperparameter
+        self.sparse     = sparse    # Sparse hyperparameter
+        self.ensemble   = ensemble  # Ensemble methods set
+        self.W          = []
 
     def _aggregate(self, M_list, US_list):
         # Number of classes
@@ -69,7 +69,11 @@ class FedHEONN_coordinator:
         return self.W
 
     def aggregate(self, M_list, US_list):
-        if self.bagging:
+        # Aggregates entire M&US lists at once
+
+        # Check for ensemble methods of aggregation
+        if self.ensemble and "bagging" in self.ensemble:
+            # Aggregate each estimators output
             n_estimators = len(US_list[0])
             for i in range(n_estimators):
                 M_base_lst = [M[i] for M in M_list]

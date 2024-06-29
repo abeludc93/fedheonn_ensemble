@@ -17,7 +17,7 @@ from examples.utils import global_fit
 
 # EXAMPLE AND MODEL HYPERPARAMETERS
 # Number of clients
-n_clients = 2
+n_clients = 200
 # Encryption
 enc = False
 # Sparse matrices
@@ -28,10 +28,11 @@ lam = 0.01
 f_act = 'logs'
 # IID or non-IID scenario (True or False)
 iid = True
-# Bagging
-bag = True
-# Number of estimators
-n_estimators = 3
+# Ensemble
+bag = True #bagging
+n_estimators = 10
+ens_client = {'bagging': n_estimators} if bag else {}
+ens_coord = {'bagging'} if bag else {}
 
 ctx = None
 if enc:
@@ -85,14 +86,14 @@ for i, value in enumerate(train_t):
     t_onehot[i, value] = 1
 
 # Create the coordinator
-coordinator = FedHEONN_coordinator(f=f_act, lam=lam, encrypted=enc, bagging=bag)
+coordinator = FedHEONN_coordinator(f=f_act, lam=lam, encrypted=enc, ensemble=ens_coord)
 
 # Create a list of clients and fit clients with their local data
 lst_clients = []
 for i in range(0, n_clients):
     # Split train equally data among clients
     rang = range(int(i*n/n_clients), int(i*n/n_clients) + int(n/n_clients))
-    client = FedHEONN_classifier(f=f_act, encrypted=enc, sparse=spr, context=ctx, bagging=bag, n_estimators=n_estimators)
+    client = FedHEONN_classifier(f=f_act, encrypted=enc, sparse=spr, context=ctx, ensemble=ens_client)
     print('Training client:', i+1, 'of', n_clients, '(', min(rang), '-', max(rang), ')')
     # Fit client local data
     client.fit(train_X[rang], t_onehot[rang])
