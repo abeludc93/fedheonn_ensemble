@@ -17,6 +17,10 @@ class FedHEONN_coordinator:
         self.sparse     = sparse    # Sparse hyperparameter
         self.ensemble   = ensemble  # Ensemble methods set
         self.W          = []
+        # Incremental learning matrix's
+        self.M_glb      = []
+        self.U_glb      = []
+        self.S_glb      = []
 
     def _aggregate(self, M_list, US_list):
         # Number of classes
