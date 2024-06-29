@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 """
-Example of using FedHEONN method for a multiclass classification task.
+Example of using FedHEONN method for a classification task, with and without incremental grouping..
 """
 # Author: Oscar Fontenla-Romero <oscar.fontenla@udc.es>
 # License: GPL-3.0-only
@@ -10,23 +10,27 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from examples.utils import global_fit
-from algorithm.fedHEONN_clients import FedHEONN_classifier
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
+from algorithm.fedHEONN_clients import FedHEONN_classifier
+from examples.utils import global_fit, incremental_fit
 
 # EXAMPLE AND MODEL HYPERPARAMETERS
 # Number of clients
-n_clients = 200
+n_clients = 1000
+# Number of clients per group
+n_groups = 100
+# Randomize number of clients per group in range (n_groups/2, groups*2)
+rnd = True
 # Encryption
-enc = False
+enc = True
 # Sparse matrices
 spr = True
 # Regularization
 lam = 0.01
+# IID
+iid = True
 # Activation function
 f_act = 'logs'
-# IID or non-IID scenario (True or False)
-iid = True
 
 ctx = None
 if enc:
@@ -45,9 +49,9 @@ if enc:
 # Source: https://archive.ics.uci.edu/ml/datasets/Dry+Bean+Dataset
 # Article: https://www.sciencedirect.com/science/article/pii/S0168169919311573?via%3Dihub
 Data = pd.read_excel('../datasets/Dry_Bean_Dataset.xlsx', sheet_name='Dry_Beans_Dataset')
-Data['Class'] = Data['Class'].map({'BARBUNYA': 0, 'BOMBAY': 1, 'CALI': 2, 'DERMASON': 3, 'HOROZ': 4, 'SEKER': 5, 'SIRA': 6})        
+Data['Class'] = Data['Class'].map({'BARBUNYA': 0, 'BOMBAY': 1, 'CALI': 2, 'DERMASON': 3, 'HOROZ': 4, 'SEKER': 5, 'SIRA': 6})
 Inputs = Data.iloc[:, :-1].to_numpy()
-Labels = Data.iloc[:, -1].to_numpy()        
+Labels = Data.iloc[:, -1].to_numpy()
 train_X, test_X, train_t, test_t = train_test_split(Inputs, Labels, test_size=0.3, random_state=42)
 
 # Data normalization (z-score): mean 0 and std 1
@@ -57,7 +61,7 @@ test_X = scaler.transform(test_X)
 
 # Number of training and test data
 n = len(train_t)
-ntest = len(test_t)  
+ntest = len(test_t)
 
 # Non-IID option: Sort training data by class
 if not iid:
@@ -65,16 +69,16 @@ if not iid:
     train_t = train_t[ind]
     train_X = train_X[ind]
     print('non-IID scenario')
-else:        
+else:
     ind_list = list(range(n))
     # Data are shuffled in case they come ordered by class
     np.random.shuffle(ind_list)
     train_X  = train_X[ind_list]
     train_t = train_t[ind_list]
     print('IID scenario')
-    
+
 # Number of classes
-nclasses = len(np.unique(train_t))     
+nclasses = len(np.unique(train_t))
 
 # One hot encoding for the targets
 t_onehot = np.zeros((n, nclasses))
@@ -90,14 +94,26 @@ for i in range(0, n_clients):
     # Split train equally data among clients
     rang = range(int(i*n/n_clients), int(i*n/n_clients) + int(n/n_clients))
     client = FedHEONN_classifier(f=f_act, encrypted=enc, sparse=spr, context=ctx)
-    print('Training client:', i+1, 'of', n_clients, '(', min(rang), '-', max(rang), ')')
+    print('Training client:', i+1, 'of', n_clients, '(', min(rang), '-', max(rang), ') - Classes:', np.unique(train_t[rang]))
     # Fit client local data
     client.fit(train_X[rang], t_onehot[rang])
     lst_clients.append(client)
 
-# PERFORM GLOBAL FIT
+# PERFORM GLOBAL AND INCREMENTAL FIT
 acc_glb, w_glb = global_fit(list_clients=lst_clients, coord=coordinator,
                             testX=test_X, testT=test_t, regression=False)
-
+acc_inc, w_inc = incremental_fit(list_clients=lst_clients, ngroups=n_groups, coord=coordinator,
+                                 testX=test_X, testT=test_t, regression=False, random_groups=rnd)
 # Print model's metrics
-print(f"Test accuracy global: {acc_glb:0.8f}")
+print(f"Test accuracy global: {acc_glb:0.2f}")
+print(f"Test accuracy incremental: {acc_inc:0.2f}")
+# Check if weights from both models are equal
+for i in range(len(w_glb)):
+    # If encrypted, decrypt data
+    if enc:
+        w_glb[i] = np.array(w_glb[i].decrypt())
+        w_inc[i] = np.array(w_inc[i].decrypt())
+    # Dif. tolerance
+    tol = abs(min(w_glb[i].min(), w_inc[i].min())) / 100
+    check = np.allclose(w_glb[i], w_inc[i], atol=tol)
+    print(f"Comparing W_glb[{i}] with W_inc[{i}]: {'OK' if check else 'KO'}")

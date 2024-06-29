@@ -85,3 +85,87 @@ class FedHEONN_coordinator:
                 self.W.append(self._aggregate(M_base_lst, US_base_lst))
         else:
             self.W = self._aggregate(M_list, US_list)
+
+    def aggregate_partial(self, M_list, US_list):
+        # Aggregates partial M&US lists to the model
+
+        # Number of classes
+        nclasses = len(M_list[0])
+
+        # Flag to represent an initial or incremental aggregation (no global M|U|S beforehand)
+        init = False
+
+        # For each class the results of each client are aggregated
+        for c in range(0, nclasses):
+
+            if (not self.M_glb) or init:
+                init = True
+                # Initialization using the first element of the list
+                M  = M_list[0][c]
+                US = US_list[0][c]
+                M_rest  = [item[c] for item in M_list[1:]]
+                US_rest = [item[c] for item in US_list[1:]]
+            else:
+                assert nclasses == len(self.M_glb)
+                M = self.M_glb[c]
+                US = self.U_glb[c] @ np.diag(self.S_glb[c])
+                M_rest  = [item[c] for item in M_list[:]]
+                US_rest = [item[c] for item in US_list[:]]
+
+            # Aggregation of M and US
+            for M_k, US_k in zip(M_rest, US_rest):
+                M = M + M_k
+                U, S, _ = sp.linalg.svd(np.concatenate((US_k, US),axis=1), full_matrices=False)
+                US = U @ np.diag(S)
+
+            # Save contents
+            if init:
+                self.M_glb.append(M)
+                self.U_glb.append(U)
+                self.S_glb.append(S)
+            else:
+                self.M_glb[c] = M
+                self.U_glb[c] = U
+                self.S_glb[c] = S
+
+    def calculate_weights(self):
+        """
+        Method to calculate the optimal weights of the ONN model for the current M & US matrix's.
+        """
+
+        # Reset optimal weights
+        self.W = []
+
+        # If there is model fitted data
+        if self.M_glb and self.U_glb and self.S_glb:
+
+            # Number of classes/outputs
+            nclasses = len(self.M_glb)
+            for c in range(0, nclasses):
+
+                # For each output calculate optimal weights
+                M = self.M_glb[c]
+                U = self.U_glb[c]
+                S = self.S_glb[c]
+
+                if self.sparse:
+                    I_ones = np.ones(np.size(S))
+                    I_sparse = sp.sparse.spdiags(I_ones, 0, I_ones.size, I_ones.size, format = "csr")
+                    S_sparse = sp.sparse.spdiags(S, 0, S.size, S.size, format = "csr")
+                    aux2 = S_sparse * S_sparse + self.lam * I_sparse
+                    # Optimal weights: the order of the matrix and vector multiplications have been rearranged to optimize the speed
+                    if self.encrypted:
+                        aux2 = aux2.toarray()
+                        w = (M.matmul(U)).matmul((U @ np.linalg.pinv(aux2)).T)
+                    else:
+                        aux2 = aux2.toarray()
+                        w = U @ (np.linalg.pinv(aux2) @ (U.transpose() @ M))
+                else:
+                    # Optimal weights: the order of the matrix and vector multiplications have been rearranged to optimize the speed
+                    if self.encrypted:
+                        w = (M.matmul(U)).matmul((U @ (np.diag(1/(S*S+self.lam*(np.ones(np.size(S))))))).T)
+                    else:
+                        w = U @ (np.diag(1/(S*S+self.lam*(np.ones(np.size(S))))) @ (U.transpose() @ M))
+
+                # Append optimal weights
+                self.W.append(w)
