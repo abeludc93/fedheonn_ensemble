@@ -87,6 +87,20 @@ class FedHEONN_coordinator:
             self.W = self._aggregate(M_list, US_list)
 
     def aggregate_partial(self, M_list, US_list):
+        # Aggregates partial M&US lists
+
+        # Check for ensemble methods of aggregation
+        if self.ensemble and "bagging" in self.ensemble:
+            # Aggregate each estimators output
+            n_estimators = len(US_list[0])
+            for i in range(n_estimators):
+                M_base_lst = [M[i] for M in M_list]
+                US_base_lst = [US[i] for US in US_list]
+                self.W.append(self._aggregate(M_base_lst, US_base_lst))
+        else:
+            self._aggregate_partial(M_list=M_list, US_list=US_list)
+
+    def _aggregate_partial(self, M_list, US_list, M_glb, U_glb, S_glb):
         # Aggregates partial M&US lists to the model
 
         # Number of classes
@@ -128,7 +142,7 @@ class FedHEONN_coordinator:
                 self.U_glb[c] = U
                 self.S_glb[c] = S
 
-    def calculate_weights(self):
+    def _calculate_weights(self):
         """
         Method to calculate the optimal weights of the ONN model for the current M & US matrix's.
         """
