@@ -71,11 +71,9 @@ class Metrics:
         try:
             if Metrics._is_classification(params):
                 log.debug("[Initializing ClassificationMetric]")
-                from metrics.classification import ClassificationMetrics
                 metric = ClassificationMetrics(params, dataset)
             else:
                 log.debug("[Initializing RegressionMetric]")
-                from metrics.regression import RegressionMetrics
                 metric = RegressionMetrics(params, dataset)
             log.info("Generating metric data ...")
             metric.generate_metrics()
