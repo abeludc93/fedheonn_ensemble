@@ -84,7 +84,7 @@ def incremental_fit(list_clients, coord, ngroups, testX, testT, regression=True,
         if debug:
             coord.calculate_weights()
             print(f"\t***Test MSE incremental (group {ig+1}): "
-                  f"{get_prediction(list_clients[0], coord, testX, testT):0.8f}")
+                  f"{get_prediction(list_clients[0], coord, testX, testT, regression=regression):0.8f}")
     # Calculate optimal weights
     coord.calculate_weights()
     # Metrics
