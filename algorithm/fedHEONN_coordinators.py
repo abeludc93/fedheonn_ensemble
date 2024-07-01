@@ -93,12 +93,16 @@ class FedHEONN_coordinator:
         if self.ensemble and "bagging" in self.ensemble:
             # Aggregate each estimators output
             n_estimators = len(US_list[0])
+            self.M_glb = [[] for i in range(n_estimators)] if not self.M_glb else self.M_glb
+            self.U_glb = [[] for i in range(n_estimators)] if not self.U_glb else self.U_glb
+            self.S_glb = [[] for i in range(n_estimators)] if not self.S_glb else self.S_glb
             for i in range(n_estimators):
                 M_base_lst = [M[i] for M in M_list]
                 US_base_lst = [US[i] for US in US_list]
-                self.W.append(self._aggregate(M_base_lst, US_base_lst))
+                self._aggregate_partial(M_list=M_base_lst, US_list=US_base_lst,
+                                        M_glb=self.M_glb[i], U_glb=self.U_glb[i], S_glb=self.S_glb[i])
         else:
-            self._aggregate_partial(M_list=M_list, US_list=US_list)
+            self._aggregate_partial(M_list=M_list, US_list=US_list, M_glb=self.M_glb, U_glb=self.U_glb, S_glb=self.S_glb)
 
     def _aggregate_partial(self, M_list, US_list, M_glb, U_glb, S_glb):
         # Aggregates partial M&US lists to the model
@@ -112,7 +116,7 @@ class FedHEONN_coordinator:
         # For each class the results of each client are aggregated
         for c in range(0, nclasses):
 
-            if (not self.M_glb) or init:
+            if not M_glb or init:
                 init = True
                 # Initialization using the first element of the list
                 M  = M_list[0][c]
@@ -120,9 +124,9 @@ class FedHEONN_coordinator:
                 M_rest  = [item[c] for item in M_list[1:]]
                 US_rest = [item[c] for item in US_list[1:]]
             else:
-                assert nclasses == len(self.M_glb)
-                M = self.M_glb[c]
-                US = self.U_glb[c] @ np.diag(self.S_glb[c])
+                assert nclasses == len(M_glb)
+                M = M_glb[c]
+                US = U_glb[c] @ np.diag(S_glb[c])
                 M_rest  = [item[c] for item in M_list[:]]
                 US_rest = [item[c] for item in US_list[:]]
 
@@ -134,33 +138,43 @@ class FedHEONN_coordinator:
 
             # Save contents
             if init:
-                self.M_glb.append(M)
-                self.U_glb.append(U)
-                self.S_glb.append(S)
+                M_glb.append(M)
+                U_glb.append(U)
+                S_glb.append(S)
             else:
-                self.M_glb[c] = M
-                self.U_glb[c] = U
-                self.S_glb[c] = S
+                M_glb[c] = M
+                U_glb[c] = U
+                S_glb[c] = S
 
-    def _calculate_weights(self):
+    def calculate_weights(self):
+        # Calculate weights
+        self.W = []
+        # Check for ensemble methods
+        if self.ensemble and "bagging" in self.ensemble:
+            # Calculate optimal weights for each estimator
+            n_estimators = len(self.M_glb)
+            for i in range(n_estimators):
+                self.W.append(self._calculate_weights(M_glb=self.M_glb[i], U_glb=self.U_glb[i], S_glb=self.S_glb[i]))
+        else:
+            self.W = self._calculate_weights(M_glb=self.M_glb, U_glb=self.U_glb, S_glb=self.S_glb)
+
+    def _calculate_weights(self, M_glb, U_glb, S_glb) -> []:
         """
         Method to calculate the optimal weights of the ONN model for the current M & US matrix's.
         """
-
-        # Reset optimal weights
-        self.W = []
+        W_out = []
 
         # If there is model fitted data
-        if self.M_glb and self.U_glb and self.S_glb:
+        if M_glb and U_glb and S_glb:
 
             # Number of classes/outputs
-            nclasses = len(self.M_glb)
+            nclasses = len(M_glb)
             for c in range(0, nclasses):
 
                 # For each output calculate optimal weights
-                M = self.M_glb[c]
-                U = self.U_glb[c]
-                S = self.S_glb[c]
+                M = M_glb[c]
+                U = U_glb[c]
+                S = S_glb[c]
 
                 if self.sparse:
                     I_ones = np.ones(np.size(S))
@@ -182,4 +196,6 @@ class FedHEONN_coordinator:
                         w = U @ (np.diag(1/(S*S+self.lam*(np.ones(np.size(S))))) @ (U.transpose() @ M))
 
                 # Append optimal weights
-                self.W.append(w)
+                W_out.append(w)
+
+        return W_out

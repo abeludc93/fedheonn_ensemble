@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from algorithm.fedHEONN_clients import FedHEONN_regressor
-from examples.utils import global_fit, incremental_fit
+from examples.utils import global_fit, incremental_fit, check_weights
 
 # EXAMPLE AND MODEL HYPERPARAMETERS
 # Number of clients
@@ -23,7 +23,7 @@ n_groups = 10
 # Randomize number of clients per group
 rnd = True
 # Encryption
-enc = True
+enc = False
 # Sparse matrices
 spr = True
 # Regularization
@@ -31,7 +31,7 @@ lam = 0.01
 # Activation function
 f_act = 'linear'
 # Ensemble
-bag = False #bagging
+bag = True #bagging
 n_estimators = 2
 ens_client = {'bagging': n_estimators} if bag else {}
 ens_coord = {'bagging'} if bag else {}
@@ -89,17 +89,11 @@ mse_inc, w_inc = incremental_fit(list_clients=lst_clients, ngroups=n_groups, coo
 # Print model's metrics
 print(f"Test MSE global: {mse_glb:0.8f}")
 print(f"Test MSE incremental: {mse_inc:0.8f}")
-# Check if weights from both models are equal
-for i in range(len(w_glb)):
-    # If encrypted, decrypt data
-    if enc:
-        w_glb[i] = np.array(w_glb[i].decrypt())
-        w_inc[i] = np.array(w_inc[i].decrypt())
-    # Dif. tolerance
-    tol = abs(min(w_glb[i].min(), w_inc[i].min())) / 100
-    check = np.allclose(w_glb[i], w_inc[i], atol=tol)
-    print(f"Comparing W_glb[{i}] with W_inc[{i}]: {'OK' if check else 'KO'}")
-    if not check:
-        # Print relative difference amongst weight elements
-        diff = abs((w_glb[i] - w_inc[i]) / w_glb[i] * 100)
-        print(f"DIFF %: {['{:.2f}%'.format(val) for val in diff]}")
+if bag:
+    for i in range(n_estimators):
+        print(f"Estimator ({i+1}):")
+        w_glb_est = w_glb[i]
+        w_inc_est = w_inc[i]
+        check_weights(w_glb_est, w_inc_est, encrypted=enc)
+else:
+    check_weights(w_glb, w_inc, encrypted=enc)

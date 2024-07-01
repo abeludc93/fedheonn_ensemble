@@ -26,7 +26,7 @@ n_groups = 10
 # Randomize number of clients per group
 rnd = True
 # Encryption
-enc = True
+enc = False
 # Sparse matrices
 spr = True
 # Regularization

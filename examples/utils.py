@@ -9,6 +9,7 @@ Module containing auxiliary functions used in incremental examples
 # Standard libraries
 from random import seed, shuffle, randint
 # Third-party libraries
+import numpy as np
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import accuracy_score
 
@@ -109,3 +110,18 @@ def global_fit(list_clients, coord, testX, testT, regression=True):
     # Metrics
     metric = get_prediction(list_clients[0], coord, testX, testT, regression=regression)
     return  metric, coord.send_weights()
+
+def check_weights(w1, w2, encrypted):
+    for i in range(len(w1)):
+        # If encrypted, decrypt data
+        if encrypted:
+            w1[i] = np.array(w1[i].decrypt())
+            w2[i] = np.array(w2[i].decrypt())
+        # Dif. tolerance
+        tol = abs(min(w1[i].min(), w2[i].min())) / 100
+        check = np.allclose(w1[i], w2[i], atol=tol)
+        print(f"Comparing W_glb[{i}] with W_inc[{i}]: {'OK' if check else 'KO'}")
+        if not check:
+            # Print relative difference amongst weight elements
+            diff = abs((w1[i] - w2[i]) / w1[i] * 100)
+            print(f"DIFF %: {['{:.2f}%'.format(val) for val in diff]}")
