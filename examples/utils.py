@@ -5,16 +5,20 @@ incremental_utils.py
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Module containing auxiliary functions used in incremental examples
 """
-
+import copy
 # Standard libraries
 from random import seed, shuffle, randint
 # Third-party libraries
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import accuracy_score
+from algorithm.fedHEONN_clients import FedHEONN_classifier, FedHEONN_regressor
+from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 
 # Seed random numbers
-seed(0)
+seed(1)
 
 
 # Function to obtain prediction metrics for given (testX,testT) data using one client and a coordinator
@@ -125,3 +129,73 @@ def check_weights(w1, w2, encrypted):
             # Print relative difference amongst weight elements
             diff = abs((w1[i] - w2[i]) / w1[i] * 100)
             print(f"DIFF %: {['{:.2f}%'.format(val) for val in diff]}")
+
+def create_list_clients(n_clients, trainX, trainY, regression, f_act, enc, spr, ctx, ens_client):
+    n = len(trainY)
+    # Create a list of clients and fit clients with their local data
+    lst_clients = []
+    for i in range(0, n_clients):
+        # Split train equally data among clients
+        rang = range(int(i * n / n_clients), int(i * n / n_clients) + int(n / n_clients))
+        if regression:
+            client = FedHEONN_regressor(f=f_act, encrypted=enc, sparse=spr, context=ctx, ensemble=ens_client)
+        else:
+            client = FedHEONN_classifier(f=f_act, encrypted=enc, sparse=spr, context=ctx, ensemble=ens_client)
+        print('Training client:', i + 1, 'of', n_clients, '(', min(rang), '-', max(rang), ')')
+        # Fit client local data
+        client.fit(trainX[rang], trainY[rang])
+        lst_clients.append(client)
+
+    return lst_clients
+
+def grid_search(range_lambda, range_estimators, n_clients, trainX, testX, trainY, testY, regression, f_act, enc, spr, ctx):
+    ens_coord = {'bagging'}
+    ens_client = {'bagging':1}
+    # Create hyperparam grid
+    graph_x = []
+    graph_y = []
+    graph_z = []
+    for i in range_lambda:
+        graph_x_row = []
+        graph_y_row = []
+        graph_z_row = []
+        for j in range_estimators:
+            lam = i
+            ens_client["bagging"] = j
+            list_clients = create_list_clients(n_clients, trainX, trainY, regression, f_act, enc, spr, ctx, ens_client)
+            coord = FedHEONN_coordinator(lam=lam, ensemble=ens_coord, f=f_act, encrypted=enc, sparse=spr)
+            metric, _ = global_fit(list_clients, coord, testX, testY, regression)
+            graph_x_row.append(i)
+            graph_y_row.append(j)
+            graph_z_row.append(metric)
+        graph_x.append(graph_x_row)
+        graph_y.append(graph_y_row)
+        graph_z.append(graph_z_row)
+        print('')
+    graph_x = np.array(graph_x)
+    graph_y = np.array(graph_y)
+    graph_z = np.array(graph_z)
+    if regression:
+        best = np.min(graph_z)
+        pos_best = np.argwhere(graph_z == np.min(graph_z))[0]
+    else:
+        best = np.max(graph_z)
+        pos_best = np.argwhere(graph_z == np.max(graph_z))[0]
+    print('Best metric: %.4f' % best)
+
+    print('Optimum lambda: %f' % (graph_x[pos_best[0], pos_best[1]]))
+    print('Optimum n_estimators: %f' % (graph_y[pos_best[0], pos_best[1]]))
+    plot_grid_search(graph_x, graph_y, graph_z)
+
+def plot_grid_search(x,y,z):
+    z_min, z_max = z.min(), z.max()
+    z_rescaled = 100 * (z - z_min) / (z_max - z_min)
+    point_sizes = z_rescaled + 10
+    #plt.figure(figsize=(10, 8))
+    scatter = plt.scatter(x, y, c=z, s=point_sizes, cmap=cm.Oranges, alpha=0.9)
+    plt.colorbar(scatter, label='Valor de Z')
+    plt.xscale('log')
+    plt.xlabel(r'Regularization (\lambda)')
+    plt.ylabel('No. of estimators')
+    plt.title('Hyper-parameter grid-search:')
+    plt.show()
