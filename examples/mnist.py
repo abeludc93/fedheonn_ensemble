@@ -23,14 +23,14 @@ enc = False
 # Sparse matrices
 spr = True
 # Regularization
-lam = 0.01
+lam = 0.32
 # Activation function
 f_act = 'logs'
 # IID or non-IID scenario (True or False)
 iid = True
 # Ensemble
 bag = True  # bagging
-n_estimators = 2
+n_estimators = 50
 ens_client = {'bagging': n_estimators} if bag else {}
 ens_coord = {'bagging'} if bag else {}
 

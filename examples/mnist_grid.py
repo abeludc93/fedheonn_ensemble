@@ -23,7 +23,6 @@ iid = True
 ctx = None
 if enc:
     import tenseal as ts
-
     # Configuring the TenSEAL context for the CKKS encryption scheme
     ctx = ts.context(
         ts.SCHEME_TYPE.CKKS,
@@ -72,9 +71,15 @@ for i, value in enumerate(train_t):
     t_onehot[i, value] = 1
 
 # Grid search hyperparameters
-rng_lambda = np.logspace(np.log(0.01)/np.log(10), 1, 4)
-rng_nestim = np.arange(2,42,10)
+lam_min = 0.01
+lam_max = 10
+num_lam = 5
+n_estimators_min = 2
+n_estimators_max = 50
+num_nestim = 5
+
+rng_lambda = np.logspace(np.log(lam_min)/np.log(10), np.log(lam_max)/np.log(10), num_lam)
+rng_nestim = np.linspace(n_estimators_min,n_estimators_max,num_nestim, dtype=int)
 grid_search(range_lambda=rng_lambda, range_estimators=rng_nestim, n_clients=n_clients,
             trainX=train_X, testX=test_X, trainY=t_onehot, testY=test_t, regression=False,
             f_act=f_act, enc=enc, spr=spr, ctx=ctx)
-

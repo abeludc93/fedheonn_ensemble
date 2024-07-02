@@ -27,9 +27,9 @@ def relu(x):
     return log(1 + exp(x))
 @clamp_positive_range
 def inv_relu(x):
-    log(exp(x) - 1)
+    return log(exp(x) - 1)
 def der_relu(x):
-    1 / (1 + exp(-x))
+    return 1 / (1 + exp(-x))
 # LINEAR activation functions
 def linear(x):
     return x
