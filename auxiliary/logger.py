@@ -16,7 +16,7 @@ import os
 # Define global variables
 APP_NAME = "FedHEONN"
 LOG_LEVEL_CMD = logging.DEBUG
-LOG_LEVEL_FILE = logging.INFO
+LOG_LEVEL_FILE = logging.DEBUG
 LOG_FILE = "out.log"
 LOG_PATH = os.getcwd()
 

@@ -9,6 +9,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from algorithm.fedHEONN_clients import FedHEONN_classifier
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
+from auxiliary.decorators import time_func
 from examples.utils import global_fit, incremental_fit
 
 # EXAMPLE AND MODEL HYPERPARAMETERS
@@ -19,7 +20,7 @@ n_groups = 2
 # Randomize number of clients per group in range (n_groups/2, groups*2)
 rnd = False
 # Encryption
-enc = False
+enc = True
 # Sparse matrices
 spr = True
 # Regularization
@@ -29,7 +30,7 @@ f_act = 'logs'
 # IID or non-IID scenario (True or False)
 iid = True
 # Ensemble
-bag = True  # bagging
+bag = False  # bagging
 n_estimators = 20
 ens_client = {'bagging': n_estimators,
               'bootstrap_samples': False, 'p_samples': 0.65,
@@ -90,25 +91,30 @@ t_onehot = np.zeros((n, n_classes))
 for i, value in enumerate(train_t):
     t_onehot[i, value] = 1
 
-# Create the coordinator
-coordinator = FedHEONN_coordinator(f=f_act, lam=lam, encrypted=enc, ensemble=ens_coord)
+@time_func
+def main():
+    # Create the coordinator
+    coordinator = FedHEONN_coordinator(f=f_act, lam=lam, encrypted=enc, ensemble=ens_coord)
 
-# Create a list of clients and fit clients with their local data
-lst_clients = []
-for i in range(0, n_clients):
-    # Split train equally data among clients
-    rang = range(int(i * n / n_clients), int(i * n / n_clients) + int(n / n_clients))
-    client = FedHEONN_classifier(f=f_act, encrypted=enc, sparse=spr, context=ctx, ensemble=ens_client)
-    print('Training client:', i + 1, 'of', n_clients, '(', min(rang), '-', max(rang), ')')
-    # Fit client local data
-    client.fit(train_X[rang], t_onehot[rang])
-    lst_clients.append(client)
+    # Create a list of clients and fit clients with their local data
+    lst_clients = []
+    for i in range(0, n_clients):
+        # Split train equally data among clients
+        rang = range(int(i * n / n_clients), int(i * n / n_clients) + int(n / n_clients))
+        client = FedHEONN_classifier(f=f_act, encrypted=enc, sparse=spr, context=ctx, ensemble=ens_client)
+        print('Training client:', i + 1, 'of', n_clients, '(', min(rang), '-', max(rang), ')')
+        # Fit client local data
+        client.fit(train_X[rang], t_onehot[rang])
+        lst_clients.append(client)
 
-# PERFORM GLOBAL FIT
-acc_glb, w_glb = global_fit(list_clients=lst_clients, coord=coordinator,
-                            testX=test_X, testT=test_t, regression=False)
-acc_inc, w_inc = incremental_fit(list_clients=lst_clients, ngroups=n_groups, coord=coordinator,
-                                 testX=test_X, testT=test_t, regression=False, random_groups=rnd)
-# Print model's metrics
-print(f"Test accuracy global: {acc_glb:0.2f}")
-print(f"Test accuracy incremental: {acc_inc:0.2f}")
+    # PERFORM GLOBAL FIT
+    acc_glb, w_glb = global_fit(list_clients=lst_clients, coord=coordinator,
+                                testX=test_X, testT=test_t, regression=False)
+    acc_inc, w_inc = incremental_fit(list_clients=lst_clients, ngroups=n_groups, coord=coordinator,
+                                     testX=test_X, testT=test_t, regression=False, random_groups=rnd)
+    # Print model's metrics
+    print(f"Test accuracy global: {acc_glb:0.2f}")
+    print(f"Test accuracy incremental: {acc_inc:0.2f}")
+
+if __name__ == "__main__":
+    main()
