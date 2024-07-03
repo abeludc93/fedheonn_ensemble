@@ -22,6 +22,7 @@ class FedHEONN_client:
         self.US         = []
         self.W          = None
         self.context    = context
+        self.idx_feats  = []
 
     def _fit(self, X, d):
         # Number of data points (n)
@@ -114,10 +115,13 @@ class FedHEONN_client:
         # Determine number of outputs/classes
         _, n_outputs = t.shape
 
+        # Seed random generator
+        np.random.seed(n_estimators * n_outputs)
         # Arrange each estimator
         for i in range(n_estimators):
             M_e, US_e = [], []
-            X_bag, t_bag = self._bootstrap_sample(X, t)
+            X_bag, t_bag, idx_features = self._random_patches(X, t)
+            self.idx_feats.append(idx_features)
 
             # A model is generated for each output/class
             for o in range(0, n_outputs):
@@ -148,19 +152,24 @@ class FedHEONN_client:
 
         # For each estimator predict values
         for i in range(n_estimators):
+            # Prepare weights and test data
             self.W = W_orig[i]
-            predictions.append(self._predict(X))
+            X_predict = X[self.idx_feats[i], :]
+            predictions.append(self._predict(X_predict))
 
         # Restore original weights and return predictions
         self.W = W_orig
         return predictions
 
     @staticmethod
-    def _bootstrap_sample(X, d):
-        """Function to create bootstrap samples"""
-        n_samples = X.shape[1]
-        indices = np.random.choice(n_samples, size=n_samples, replace=True)
-        return X[:, indices], d[indices, :]
+    def _random_patches(X, d, p_samples=1.0, bootstrap_samples=True, p_features=1.0, bootstrap_features=False):
+        """Function to create random patches"""
+        n_features, n_samples = X.shape
+        idx_samples  = np.sort(np.random.choice(n_samples, size=int(n_samples * p_samples), replace=bootstrap_samples))
+        idx_features = np.sort(np.random.choice(n_features, size=int(n_features * p_features), replace=bootstrap_features))
+        print(f"Indices samples unicos: {len(np.unique(idx_samples))}")
+        print(f"Indices features: {idx_features} (unicos: {len(np.unique(idx_features))})")
+        return X[:,idx_samples][idx_features,:], d[idx_samples, :], idx_features
 
     @staticmethod
     def _reshape(arr):

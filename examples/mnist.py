@@ -13,9 +13,9 @@ from examples.utils import global_fit, incremental_fit
 
 # EXAMPLE AND MODEL HYPERPARAMETERS
 # Number of clients
-n_clients = 10
+n_clients = 4
 # Number of clients per group
-n_groups = 5
+n_groups = 2
 # Randomize number of clients per group in range (n_groups/2, groups*2)
 rnd = False
 # Encryption
@@ -23,14 +23,14 @@ enc = False
 # Sparse matrices
 spr = True
 # Regularization
-lam = 0.32
+lam = 0.01
 # Activation function
 f_act = 'logs'
 # IID or non-IID scenario (True or False)
 iid = True
 # Ensemble
 bag = True  # bagging
-n_estimators = 50
+n_estimators = 3
 ens_client = {'bagging': n_estimators} if bag else {}
 ens_coord = {'bagging'} if bag else {}
 
@@ -47,6 +47,7 @@ if enc:
     ctx.generate_galois_keys()
     ctx.global_scale = 2 ** 40
 
+np.random.seed(1)
 # Create and split classification dataset
 digits = load_digits()
 # flatten the images
@@ -55,9 +56,9 @@ data = digits.images.reshape((n_samples, -1))
 train_X, test_X, train_t, test_t = train_test_split(data, digits.target, test_size=0.3, random_state=42)
 
 # Data normalization (z-score): mean 0 and std 1
-scaler = StandardScaler().fit(train_X)
-train_X = scaler.transform(train_X)
-test_X = scaler.transform(test_X)
+#scaler = StandardScaler().fit(train_X)
+#train_X = scaler.transform(train_X)
+#test_X = scaler.transform(test_X)
 
 # Number of training and test data
 n = len(train_t)
