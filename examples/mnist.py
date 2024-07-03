@@ -30,8 +30,11 @@ f_act = 'logs'
 iid = True
 # Ensemble
 bag = True  # bagging
-n_estimators = 3
-ens_client = {'bagging': n_estimators} if bag else {}
+n_estimators = 20
+ens_client = {'bagging': n_estimators,
+              'bootstrap_samples': False, 'p_samples': 0.65,
+              'bootstrap_features': False, 'p_features': 0.75
+              } if bag else {}
 ens_coord = {'bagging'} if bag else {}
 
 ctx = None

@@ -111,16 +111,20 @@ class FedHEONN_client:
         self.US        = []
         self.W         = None
 
-    def bagging_fit(self, X: np.ndarray, t: np.ndarray, n_estimators: int):
+    def bagging_fit(self, X: np.ndarray, t: np.ndarray):
         # Determine number of outputs/classes
         _, n_outputs = t.shape
+
+        # Extract ensemble hyper-parameters (bagging)
+        n_estimators, p_samples, b_samples, p_features, b_features = self._extract_ensemble_params()
+        assert n_estimators > 1
 
         # Seed random generator
         np.random.seed(n_estimators * n_outputs)
         # Arrange each estimator
         for i in range(n_estimators):
             M_e, US_e = [], []
-            X_bag, t_bag, idx_features = self._random_patches(X, t)
+            X_bag, t_bag, idx_features = self._random_patches(X, t, p_samples, b_samples, p_features, b_features)
             self.idx_feats.append(idx_features)
 
             # A model is generated for each output/class
@@ -161,6 +165,18 @@ class FedHEONN_client:
         self.W = W_orig
         return predictions
 
+    def _extract_ensemble_params(self):
+        if not self.ensemble:
+            return None
+        else:
+            n_estimators    = self.ensemble['bagging'] if 'bagging' in self.ensemble else 0
+            p_samples       = self.ensemble['p_samples'] if 'p_samples' in self.ensemble else 1.0
+            b_samples       = self.ensemble['bootstrap_samples'] if 'bootstrap_samples' in self.ensemble else True
+            p_features      = self.ensemble['p_features'] if 'p_features' in self.ensemble else 1.0
+            b_features      = self.ensemble['bootstrap_features'] if 'bootstrap_features' in self.ensemble else False
+
+        return n_estimators, p_samples, b_samples, p_features, b_features
+
     @staticmethod
     def _random_patches(X, d, p_samples=1.0, bootstrap_samples=True, p_features=1.0, bootstrap_features=False):
         """Function to create random patches"""
@@ -189,9 +205,7 @@ class FedHEONN_regressor(FedHEONN_client):
 
         # Fit data
         if self.ensemble and "bagging" in self.ensemble:
-            n_estimators = self.ensemble["bagging"]
-            assert  n_estimators > 1
-            self.bagging_fit(X=X, t=t, n_estimators=n_estimators)
+            self.bagging_fit(X=X, t=t)
         else:
             self.normal_fit(X=X, t=t)
 
@@ -227,9 +241,7 @@ class FedHEONN_classifier(FedHEONN_client):
 
         # Fit data
         if self.ensemble and "bagging" in self.ensemble:
-            n_estimators = self.ensemble["bagging"]
-            assert n_estimators > 1
-            self.bagging_fit(X=X, t=t_onehot, n_estimators=n_estimators)
+            self.bagging_fit(X=X, t=t_onehot)
         else:
             self.normal_fit(X=X, t=t_onehot)
 
