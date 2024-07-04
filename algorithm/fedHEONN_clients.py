@@ -189,7 +189,7 @@ class FedHEONN_client:
         idx_features = np.sort(np.random.choice(n_features, size=int(n_features * p_features), replace=bootstrap_features))
         log.debug(f"Unique sample indexes: {len(np.unique(idx_samples))} "
                   f"Feature indexes:\n{idx_features}\n"
-                  f"Unique feature indexes: {len(np.unique(idx_features))})")
+                  f"Unique feature indexes: {len(np.unique(idx_features))}")
         return X[:,idx_samples][idx_features,:], d[idx_samples, :], idx_features
 
     @staticmethod

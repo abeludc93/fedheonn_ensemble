@@ -6,7 +6,6 @@ import numpy as np
 import scipy as sp
 # Application modules
 from algorithm.activation_functions import _load_act_fn
-from auxiliary.logger import logger as log
 
 class FedHEONN_coordinator:
     def __init__(self, f: str='logs', lam: float=0, encrypted: bool=True, sparse: bool=True, ensemble: {}=None ):
