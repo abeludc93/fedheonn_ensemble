@@ -7,7 +7,7 @@ import scipy as sp
 import tenseal as ts
 # Application modules
 from algorithm.activation_functions import _load_act_fn
-
+from auxiliary.logger import logger as log
 
 # Abstract client
 class FedHEONN_client:
@@ -110,6 +110,7 @@ class FedHEONN_client:
         self.M         = []
         self.US        = []
         self.W         = None
+        self.idx_feats = []
 
     def bagging_fit(self, X: np.ndarray, t: np.ndarray):
         # Determine number of outputs/classes
@@ -167,6 +168,7 @@ class FedHEONN_client:
 
     def _extract_ensemble_params(self):
         if not self.ensemble:
+            log.warn(f"No ensemble hyper-parameters dictionary found in this client!")
             return None
         else:
             n_estimators    = self.ensemble['bagging'] if 'bagging' in self.ensemble else 0
@@ -174,7 +176,9 @@ class FedHEONN_client:
             b_samples       = self.ensemble['bootstrap_samples'] if 'bootstrap_samples' in self.ensemble else True
             p_features      = self.ensemble['p_features'] if 'p_features' in self.ensemble else 1.0
             b_features      = self.ensemble['bootstrap_features'] if 'bootstrap_features' in self.ensemble else False
-
+        log.debug(f"n_estimators: {n_estimators} "
+                  f"(p_samples: {p_samples} b_samples: {b_samples}) "
+                  f"(p_features:{p_features} b_features: {b_features})")
         return n_estimators, p_samples, b_samples, p_features, b_features
 
     @staticmethod
@@ -183,8 +187,9 @@ class FedHEONN_client:
         n_features, n_samples = X.shape
         idx_samples  = np.sort(np.random.choice(n_samples, size=int(n_samples * p_samples), replace=bootstrap_samples))
         idx_features = np.sort(np.random.choice(n_features, size=int(n_features * p_features), replace=bootstrap_features))
-        print(f"Indices samples unicos: {len(np.unique(idx_samples))}")
-        print(f"Indices features: {idx_features} (unicos: {len(np.unique(idx_features))})")
+        log.debug(f"Unique sample indexes: {len(np.unique(idx_samples))} "
+                  f"Feature indexes:\n{idx_features}\n"
+                  f"Unique feature indexes: {len(np.unique(idx_features))})")
         return X[:,idx_samples][idx_features,:], d[idx_samples, :], idx_features
 
     @staticmethod

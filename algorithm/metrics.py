@@ -152,21 +152,21 @@ class RegressionMetrics(Metrics):
         return mean_squared_error(y_true, y_pred)
 
     @staticmethod
-    def _calculate_mae_percent(y_true, y_pred) -> float:
+    def _calculate_mae_percent(y_true, y_prediction) -> float:
         # y_true data (from dataset) and y_pred (predictions) should match in length/shape: [m,1] - [m,]
-        assert len(y_true) == len(y_pred)
-        return mean_absolute_percentage_error(y_true, y_pred, multioutput='raw_values')
+        assert len(y_true) == len(y_prediction)
+        return mean_absolute_percentage_error(y_true, y_prediction, multioutput='raw_values')
 
     @staticmethod
-    def _calculate_r2_score(y_true, y_pred) -> float:
+    def _calculate_r2_score(y_true, y_prediction) -> float:
         # y_true data (from dataset) and y_pred (predictions) should match in length/shape: [m,1] - [m,]
-        assert len(y_true) == len(y_pred)
-        return r2_score(y_true, y_pred)
+        assert len(y_true) == len(y_prediction)
+        return r2_score(y_true, y_prediction)
 
     @staticmethod
-    def _plot_prediction_err_display(y_true, y_pred, axes):
+    def _plot_prediction_err_display(y_true, y_prediction, axes):
         # Graphic prediction error
-        PredictionErrorDisplay.from_predictions(y_true, y_pred, ax=axes)
+        PredictionErrorDisplay.from_predictions(y_true, y_prediction, ax=axes)
 
     @staticmethod
     def _vectorize(y):
@@ -231,7 +231,7 @@ class ClassificationMetrics(Metrics):
             plt.tight_layout()
             plt.show()
         else:
-            log.info(f"Not plotting classification metrics for multiclass case: {self.n_classes}")
+            log.warn(f"Not plotting classification metrics for multiclass case: {self.n_classes}")
 
     def _calculate_hit_predictions(self) -> ():
         # Calculate number of hits for train & test data
@@ -240,22 +240,21 @@ class ClassificationMetrics(Metrics):
         hits_test = np.sum(self.y_test == self.d_test)
         return hits_train, hits_test
 
-    def _calculate_classification_report(self, y_true, y_pred, hits) -> ():
+    def _calculate_classification_report(self, y_true, y_prediction, hits) -> ():
         target_names = [f"lbl_{i}" for i in range(self.n_classes)]
         labels = [i for i in range(self.n_classes)]
         # For binary case, extract true positives directly
         if len(target_names) == 2:
-            tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+            tn, fp, fn, tp = confusion_matrix(y_true, y_prediction).ravel()
             log.info(f"|TrueNegatives: {tn} |FalsePositives: {fp} |FalseNegatives: {fn} |TruePositives: {tp} "
                      f"|Hits: {hits}")
-        report_print = classification_report(y_true, y_pred, target_names=target_names, labels=labels,
-                                             zero_division=0.0,
-                                             output_dict=False)
-        report_dict = classification_report(y_true, y_pred, target_names=target_names, labels=labels, zero_division=0.0,
-                                            output_dict=True)
+        report_print = classification_report(y_true, y_prediction, target_names=target_names, labels=labels,
+                                             zero_division=0.0, output_dict=False)
+        report_dict = classification_report(y_true, y_prediction, target_names=target_names, labels=labels,
+                                            zero_division=0.0, output_dict=True)
         return report_print, report_dict
 
-    def _calculate_roc_score(self, y_true, y_pred) -> float | None:
+    def _calculate_roc_score(self, y_true, y_prediction) -> float | None:
         # List with all available classes
         target_names = [i for i in range(self.n_classes)]
         # Check if true target data has all the available classes. If so, calculate ROC, else return None.
@@ -263,22 +262,22 @@ class ClassificationMetrics(Metrics):
         if n_classes_true == self.n_classes:
             # One-hot multiclass
             y_t = np.zeros((len(y_true), n_classes_true))
-            y = np.zeros((len(y_pred), n_classes_true))
-            for i in range(len(y_pred)):
+            y = np.zeros((len(y_prediction), n_classes_true))
+            for i in range(len(y_prediction)):
                 y_t[i, y_true[i]] = 1
-                y[i, y_pred[i]] = 1
+                y[i, y_prediction[i]] = 1
             return roc_auc_score(y_t, y, labels=target_names, multi_class="ovr")
         else:
             log.warn("ROC_SCORE: 'y_true' target data is unbalanced and does not contain all available classes.")
             return None
 
     @staticmethod
-    def _plot_confusion_matrix(y_true, y_pred, target_names, axes):
+    def _plot_confusion_matrix(y_true, y_prediction, target_names, axes):
         if len(target_names) > 1:
             # Graphic confusion matrix
-            ConfusionMatrixDisplay.from_predictions(y_true, y_pred, ax=axes,
+            ConfusionMatrixDisplay.from_predictions(y_true, y_prediction, ax=axes,
                                                     colorbar=False, display_labels=target_names, cmap="Greys")
 
     @staticmethod
-    def _plot_roc_curve(y_true, y_pred, name, axes):
-        RocCurveDisplay.from_predictions(y_true, y_pred, ax=axes, name=name)
+    def _plot_roc_curve(y_true, y_prediction, name, axes):
+        RocCurveDisplay.from_predictions(y_true, y_prediction, ax=axes, name=name)

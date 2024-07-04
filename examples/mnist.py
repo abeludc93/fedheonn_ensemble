@@ -20,7 +20,7 @@ n_groups = 2
 # Randomize number of clients per group in range (n_groups/2, groups*2)
 rnd = False
 # Encryption
-enc = True
+enc = False
 # Sparse matrices
 spr = True
 # Regularization
@@ -30,8 +30,8 @@ f_act = 'logs'
 # IID or non-IID scenario (True or False)
 iid = True
 # Ensemble
-bag = False  # bagging
-n_estimators = 20
+bag = True  # bagging
+n_estimators = 3
 ens_client = {'bagging': n_estimators,
               'bootstrap_samples': False, 'p_samples': 0.65,
               'bootstrap_features': False, 'p_features': 0.75

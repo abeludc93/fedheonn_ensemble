@@ -86,10 +86,10 @@ def time_func(func: Callable) -> Callable:
     :return: fractional seconds
     """
     def _wrapper(*args, **kwargs):
-        log.debug("Starting timer to [%s]", func.__name__)
+        log.info("Starting timer to [%s]", func.__name__)
         start = perf_counter()
         output = func(*args, **kwargs)
         end = perf_counter()
-        log.debug("Elapsed time running [%s]: [%.3e] seconds", func.__name__, end - start)
+        log.info("Elapsed time running [%s]: [%.3e] seconds", func.__name__, end - start)
         return output
     return _wrapper

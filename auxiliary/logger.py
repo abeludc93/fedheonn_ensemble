@@ -18,7 +18,7 @@ APP_NAME = "FedHEONN"
 LOG_LEVEL_CMD = logging.DEBUG
 LOG_LEVEL_FILE = logging.DEBUG
 LOG_FILE = "out.log"
-LOG_PATH = os.getcwd()
+LOG_PATH = os.path.normpath(os.getcwd() + os.sep + os.pardir)
 
 
 # Create a console handler and set log level
@@ -30,7 +30,8 @@ _fh = logging.FileHandler("{0}/{1}".format(LOG_PATH, LOG_FILE))
 _fh.setLevel(LOG_LEVEL_FILE)
 
 # Create a formatter and attach to handlers
-_formatter = logging.Formatter('%(asctime)s [%(name)s] [%(levelname)5s]: %(message)s')
+#_formatter = logging.Formatter('%(asctime)s [%(name)s] [%(levelname)5s]: %(message)s')
+_formatter = logging.Formatter('%(asctime)s [%(levelname)5s]: %(message)s')
 _ch.setFormatter(_formatter)
 _fh.setFormatter(_formatter)
 
