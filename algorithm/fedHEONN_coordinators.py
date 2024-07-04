@@ -20,6 +20,8 @@ class FedHEONN_coordinator:
         self.M_glb      = []
         self.U_glb      = []
         self.S_glb      = []
+        # Auxiliary list for attribute indexes
+        self.idx_feats  = []
 
     def _aggregate(self, M_list, US_list):
         # Number of classes
@@ -70,6 +72,17 @@ class FedHEONN_coordinator:
 
     def send_weights(self):
         return self.W
+
+    def calculate_idx_feats(self, n_estimators, n_features, p_features, b_features):
+        if self.ensemble:
+            np.random.seed(42)
+            self.idx_feats = []
+            for i in range(n_estimators):
+                self.idx_feats.append(np.sort(np.random.choice(n_features, size=int(n_features * p_features), replace=b_features)))
+
+    def send_idx_feats(self):
+        return self.idx_feats
+
 
     def aggregate(self, M_list, US_list):
         # Aggregates entire M&US lists at once
@@ -198,3 +211,11 @@ class FedHEONN_coordinator:
                 W_out.append(w)
 
         return W_out
+
+    def clean_coordinator(self):
+        """Method that resets coordinators model auxiliary matrix's and weights"""
+        self.W          = []
+        # Incremental learning matrix's
+        self.M_glb      = []
+        self.U_glb      = []
+        self.S_glb      = []

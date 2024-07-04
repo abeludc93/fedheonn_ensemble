@@ -105,6 +105,9 @@ class FedHEONN_client:
         """
         self.context = context
 
+    def set_idx_feats(self, idx_feats):
+        self.idx_feats = idx_feats
+
     def clean_client(self):
         """Method that resets models auxiliary matrix's and weights"""
         self.M         = []
@@ -125,8 +128,7 @@ class FedHEONN_client:
         # Arrange each estimator
         for i in range(n_estimators):
             M_e, US_e = [], []
-            X_bag, t_bag, idx_features = self._random_patches(X, t, p_samples, b_samples, p_features, b_features)
-            self.idx_feats.append(idx_features)
+            X_bag, t_bag = self._random_patches(X, t, self.idx_feats[i], p_samples, b_samples)
 
             # A model is generated for each output/class
             for o in range(0, n_outputs):
@@ -182,15 +184,14 @@ class FedHEONN_client:
         return n_estimators, p_samples, b_samples, p_features, b_features
 
     @staticmethod
-    def _random_patches(X, d, p_samples=1.0, bootstrap_samples=True, p_features=1.0, bootstrap_features=False):
+    def _random_patches(X, d, idx_features, p_samples=1.0, bootstrap_samples=True):
         """Function to create random patches"""
         n_features, n_samples = X.shape
         idx_samples  = np.sort(np.random.choice(n_samples, size=int(n_samples * p_samples), replace=bootstrap_samples))
-        idx_features = np.sort(np.random.choice(n_features, size=int(n_features * p_features), replace=bootstrap_features))
         log.debug(f"Unique sample indexes: {len(np.unique(idx_samples))} "
-                  f"Feature indexes:\n{idx_features}\n"
-                  f"Unique feature indexes: {len(np.unique(idx_features))}")
-        return X[:,idx_samples][idx_features,:], d[idx_samples, :], idx_features
+                  f"Unique feature indexes: {len(np.unique(idx_features))}"
+                  f"Feature indexes:\n{idx_features}\n")
+        return X[:,idx_samples][idx_features,:], d[idx_samples, :]
 
     @staticmethod
     def _reshape(arr):
