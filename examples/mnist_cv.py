@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.datasets import load_digits
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import ShuffleSplit
+from sklearn.model_selection import ShuffleSplit, KFold
 from algorithm.fedHEONN_clients import FedHEONN_classifier
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from auxiliary.decorators import time_func
@@ -43,6 +43,10 @@ ens_client = {'bagging': n_estimators,
               'bootstrap_features': b_feat, 'p_features': p_feat
               } if bag else {}
 ens_coord = {'bagging'} if bag else {}
+# Cross-validation
+kfold = True
+split = 10
+
 
 ctx = None
 if enc:
@@ -107,10 +111,13 @@ def main():
         n_attributes = train_X.shape[1]
         coordinator.calculate_idx_feats(n_estimators, n_attributes, p_feat, b_feat)
 
-    # Cross-validation TODO: test StratifiedShuffleSplit
-    ss = ShuffleSplit(n_splits=10, test_size=0.2, random_state=42)
+    # Cross-validation
+    if kfold:
+        cv = KFold(n_splits=split)
+    else:
+        cv = ShuffleSplit(n_splits=split, test_size=0.2, random_state=42)
     acc_glb_splits, w_glb_splits, acc_inc_splits, w_inc_splits = [], [], [], []
-    for it, (train_index, test_index) in  enumerate(ss.split(train_X, t_onehot)):
+    for it, (train_index, test_index) in  enumerate(cv.split(train_X, t_onehot)):
         # Get split indexes
         print(f"Cross validation split: {it+1}")
         trainX_data, trainT_data = train_X[train_index], t_onehot[train_index]
