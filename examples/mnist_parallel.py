@@ -17,7 +17,7 @@ def load_params():
     # Number of clients
     n_clients = 2
     # Encryption
-    enc = False
+    enc = True
     # Sparse matrices
     spr = True
     # Regularization
@@ -31,7 +31,7 @@ def load_params():
     # Ensemble
     bag = True
     # Bagging
-    n_estimators = 50
+    n_estimators = 2
     p_samples = 1.0
     b_samples = False
     p_feat = 1.0
