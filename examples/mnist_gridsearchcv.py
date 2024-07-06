@@ -13,6 +13,8 @@ from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from auxiliary.decorators import time_func
 from examples.utils import global_fit, incremental_fit
 from itertools import product
+import os
+import time
 
 
 # EXAMPLE AND MODEL HYPERPARAMETERS
@@ -40,7 +42,6 @@ split = 10
 ctx = None
 if enc:
     import tenseal as ts
-
     # Configuring the TenSEAL context for the CKKS encryption scheme
     ctx = ts.context(
         ts.SCHEME_TYPE.CKKS,
@@ -59,9 +60,9 @@ data = digits.images.reshape((n_samples, -1))
 train_X, test_X, train_t, test_t = train_test_split(data, digits.target, test_size=0.2, random_state=42)
 
 # Data normalization (z-score): mean 0 and std 1
-#scaler = StandardScaler().fit(train_X)
-#train_X = scaler.transform(train_X)
-#test_X = scaler.transform(test_X)
+scaler = StandardScaler().fit(train_X)
+train_X = scaler.transform(train_X)
+test_X = scaler.transform(test_X)
 
 # Number of training and test data
 n = len(train_t)
@@ -103,12 +104,14 @@ def generate_grid_search_iterator(lambda_grid, n_estimators_grid, p_samples_grid
 
 @time_func
 def main():
+    # Hyperparameter search grid
     lambda_grid = [0.01, 1]
     n_estimators_grid = [2, 10]
     p_samples_grid = [0.75, 1.0]
     p_features_grid = [0.75, 1.0]
     gs_it = generate_grid_search_iterator(lambda_grid, n_estimators_grid, p_samples_grid, p_features_grid)
 
+    # Ensemble method
     if bag:
         gs_space = np.prod([len(i) for i in [lambda_grid, n_estimators_grid, p_samples_grid, p_features_grid,
                                              [True,False], [True,False]]])
@@ -116,9 +119,10 @@ def main():
         gs_space = len(lambda_grid)
     print(f"Grid search hyper-parameter space: {gs_space}")
 
+    # Pandas dataframe dictionary
     df_dict = {"LAMBDA": [], "N_ESTIMATORS": [], "B_SAMPLES": [], "B_FEATS": [], "P_SAMPLES": [], "P_FEATS": [],
                "METRIC_MEAN": [], "METRIC_STD": []} if bag else {"LAMBDA": [], "METRIC_MEAN": [], "METRIC_STD": []}
-
+    # MAIN LOOP
     for idx, tuple_it in enumerate(gs_it):
         # Construct parameters
         print(f"GS ITER {idx+1} of {gs_space}")
@@ -191,10 +195,13 @@ def main():
             df_dict["P_SAMPLES"].append(p_samples)
             df_dict["P_FEATS"].append(p_feats)
 
-    # Construct dataframe and sort
+    # Construct dataframe, sort and export data
     df = pd.DataFrame(df_dict)
-    df.sort_values(by="METRIC_MEAN", inplace=True)
-    df.to_excel("mnist_gridsearchcv.xlsx", "Hoja1")
+    df.sort_values(by="METRIC_MEAN", inplace=True, ascending=False)
+    lt = time.localtime()
+    timestamp = f"{lt.tm_year}_{lt.tm_mon}_{lt.tm_mday}-{lt.tm_hour}_{lt.tm_min}"
+    file_path = os.path.normpath(os.getcwd() + os.sep + os.pardir + os.sep + f"mnist_gs_cv_{timestamp}.xlsx")
+    df.to_excel(file_path, "RESULTS")
     print(df.head())
 
 if __name__ == "__main__":
