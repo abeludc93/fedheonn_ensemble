@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
+# Standard libraries
+import multiprocessing
+from itertools import repeat
+import time
 # Third-party libraries
 import numpy as np
 import scipy as sp
@@ -12,7 +16,8 @@ from auxiliary.logger import logger as log
 # Abstract client
 class FedHEONN_client:
 
-    def __init__(self, f='logs', encrypted: bool=True, sparse: bool=True, context: ts.Context=None, ensemble: {}=None):
+    def __init__(self, f='logs', encrypted: bool=True, sparse: bool=True, context: ts.Context=None, ensemble: {}=None,
+                 parallel: bool=False):
         """Constructor method"""
         self.f, self.f_inv, self.fderiv = _load_act_fn(f)
         self.encrypted  = encrypted # Encryption hyperparameter
@@ -23,6 +28,7 @@ class FedHEONN_client:
         self.W          = None
         self.context    = context
         self.idx_feats  = []
+        self.parallel   = parallel
 
     def _fit(self, X, d):
         # Number of data points (n)
@@ -123,23 +129,44 @@ class FedHEONN_client:
         n_estimators, p_samples, b_samples, p_features, b_features = self._extract_ensemble_params()
         assert n_estimators > 1
 
-        # Seed random generator: TODO eliminate feature
+        # Seed random generator: TODO eliminate feature when tests are done
         np.random.seed(n_estimators * n_outputs)
 
-        # Arrange each estimator
-        for i in range(n_estimators):
-            M_e, US_e = [], []
-            X_bag, t_bag = self._random_patches(X, t, self.idx_feats[i], p_samples, b_samples)
+        # Parallelized fitting
+        if not self.parallel:
+            t_ini = time.perf_counter()
+            print(f"Doing serialized bagging fitting, number of estimators: {({n_estimators})}")
+            # Arrange each estimator
+            for idx in range(n_estimators):
+                M_e, US_e = self._bagging_fit(X, t, p_samples, b_samples, n_outputs, idx)
+                # Append to master M&US matrix's
+                self.M.append(M_e)
+                self.US.append(US_e)
+            print(f"Serialized bagging fitting done in: {time.perf_counter() - t_ini} s")
+        else:
+            t_ini = time.perf_counter()
+            print(f"Doing parallelized bagging fitting with ({multiprocessing.cpu_count()}) cpu-cores, "
+                  f"number of estimators: {({n_estimators})}")
+            pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+            zip_iterable = zip(repeat(X), repeat(t), repeat(p_samples), repeat(b_samples), repeat(n_outputs),
+                               list(range(n_estimators)))
+            # Blocks until ready, ordered results
+            results = pool.starmap(self._bagging_fit, zip_iterable)
+            for M_e, US_e in results:
+                # Append to master M&US matrix's
+                self.M.append(M_e)
+                self.US.append(US_e)
+            print(f"Parallelized bagging fitting done in: {time.perf_counter()-t_ini} s")
 
-            # A model is generated for each output/class
-            for o in range(0, n_outputs):
-                M, US = self._fit(X_bag, t_bag[:, o])
-                M_e.append(M)
-                US_e.append(US)
-
-            # Append to master M&US matrix's
-            self.M.append(M_e)
-            self.US.append(US_e)
+    def _bagging_fit(self, X, t, p_samples, b_samples, n_outputs, estimator_idx):
+        M_e, US_e = [], []
+        X_bag, t_bag = self._random_patches(X, t, self.idx_feats[estimator_idx], p_samples, b_samples)
+        # A model is generated for each output/class
+        for o in range(0, n_outputs):
+            M, US = self._fit(X_bag, t_bag[:, o])
+            M_e.append(M)
+            US_e.append(US)
+        return M_e, US_e
 
     def normal_fit(self, X: np.ndarray, t: np.ndarray):
         # Determine number of outputs/classes
