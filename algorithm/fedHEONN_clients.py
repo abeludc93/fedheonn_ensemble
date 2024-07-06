@@ -123,8 +123,9 @@ class FedHEONN_client:
         n_estimators, p_samples, b_samples, p_features, b_features = self._extract_ensemble_params()
         assert n_estimators > 1
 
-        # Seed random generator
+        # Seed random generator: TODO eliminate feature
         np.random.seed(n_estimators * n_outputs)
+
         # Arrange each estimator
         for i in range(n_estimators):
             M_e, US_e = [], []
