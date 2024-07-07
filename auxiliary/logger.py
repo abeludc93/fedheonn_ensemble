@@ -30,8 +30,8 @@ _fh = logging.FileHandler("{0}/{1}".format(LOG_PATH, LOG_FILE))
 _fh.setLevel(LOG_LEVEL_FILE)
 
 # Create a formatter and attach to handlers
-_formatter_ch = logging.Formatter('[%(levelname)5s]: %(message)s')
-_formatter_fh = logging.Formatter('%(asctime)s [%(levelname)5s]: %(message)s')
+_formatter_ch = logging.Formatter('%(levelname)-8s - %(message)s')
+_formatter_fh = logging.Formatter('%(asctime)s - %(levelname)-8s - %(message)s')
 _ch.setFormatter(_formatter_ch)
 _fh.setFormatter(_formatter_fh)
 

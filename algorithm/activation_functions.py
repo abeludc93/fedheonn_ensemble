@@ -8,26 +8,30 @@ This module contains several activation functions used within the neural network
 
 # Standard libraries
 from typing import Callable
+from sys import float_info as sys_flt
 # Third-party libraries
 from numpy import log, exp, ones, divide, ndarray
 # Application modules
 from auxiliary.decorators import clamp_positive_range, clamp_unitary_range
 
+# We avoid using the @decorator's notation for multiprocessing reasons (can't be pickled)
 
 # LOG-SIGMOID transfer functions
 def logsig(x):
     return 1 / (1 + (exp(-x)))
-@clamp_unitary_range
-def inv_logsig(x):
+def _inv_logsig(x):
     return -log(divide(1, x) - 1)
+def inv_logsig(x):
+    return clamp_unitary_range(_inv_logsig)(x)
 def der_logsig(x):
     return 1 / ((1 + exp(-x)) ** 2) * exp(-x)
 # RELU activation functions
 def relu(x):
     return log(1 + exp(x))
-@clamp_positive_range
-def inv_relu(x):
+def _inv_relu(x):
     return log(exp(x) - 1)
+def inv_relu(x):
+    return clamp_positive_range(_inv_relu)(x)
 def der_relu(x):
     return 1 / (1 + exp(-x))
 # LINEAR activation functions
@@ -51,5 +55,7 @@ def _load_act_fn(fn: str = "linear") -> (Callable, Callable, Callable):
         return linear, inv_linear, der_linear
     elif fn == "relu":
         return relu, inv_relu, der_relu
-    else:
+    elif fn == "logs":
         return logsig, inv_logsig, logsig
+    else:
+        raise ValueError(f"Activation function unknown: {fn}")
