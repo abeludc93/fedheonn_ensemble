@@ -128,6 +128,11 @@ class FedHEONN_client:
         # Extract ensemble hyper-parameters (bagging)
         n_estimators, p_samples, b_samples, p_features, b_features = self._extract_ensemble_params()
         assert n_estimators > 1
+        assert p_features   > 0.0
+        assert p_samples    > 0.0
+        # No need for feature-indexing if p_feats is 1.0 and no replacement is being done
+        if p_features == 1.0 and b_features is False:
+            self.set_idx_feats([slice(None) for i in range(n_estimators)])
 
         # Seed random generator: TODO eliminate feature when tests are done
         np.random.seed(n_estimators * n_outputs)
@@ -211,6 +216,9 @@ class FedHEONN_client:
                   f"(p_features:{p_features} b_features: {b_features})")
         return n_estimators, p_samples, b_samples, p_features, b_features
 
+    def _set_ensemble_params(self, ensemble={}):
+        self.ensemble = ensemble
+
     @staticmethod
     def _random_patches(X, d, idx_features, p_samples=1.0, bootstrap_samples=True):
         """Function to create random patches"""
@@ -231,6 +239,12 @@ class FedHEONN_client:
         X = FedHEONN_client._reshape(X).T
         t = FedHEONN_client._reshape(t)
         return X, t
+
+    @staticmethod
+    def generate_ensemble_params(n_estimators=10, p_samples=1.0, b_samples=True, p_features=1.0, b_features=False):
+        ensemble = {'bagging': n_estimators, 'p_samples': p_samples, 'bootstrap_samples': b_samples,
+                    'p_features': p_features, 'bootstrap_features': b_features}
+        return ensemble
 
 class FedHEONN_regressor(FedHEONN_client):
     """FedHEONN client for regression tasks"""

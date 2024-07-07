@@ -74,7 +74,10 @@ class FedHEONN_coordinator:
         return self.W
 
     def calculate_idx_feats(self, n_estimators, n_features, p_features, b_features):
-        if self.ensemble:
+        assert n_estimators > 1
+        assert p_features   > 0.0
+        # No need to calculate index features if p_feat is 1.0 and no replacement is allowed (bootstrap)
+        if self.ensemble and not (p_features == 1.0 and b_features is False):
             np.random.seed(42)
             self.idx_feats = []
             for i in range(n_estimators):
@@ -82,7 +85,6 @@ class FedHEONN_coordinator:
 
     def send_idx_feats(self):
         return self.idx_feats
-
 
     def aggregate(self, M_list, US_list):
         # Aggregates entire M&US lists at once
@@ -219,3 +221,7 @@ class FedHEONN_coordinator:
         self.M_glb      = []
         self.U_glb      = []
         self.S_glb      = []
+
+    @staticmethod
+    def generate_ensemble_params():
+        return {'bagging'}
