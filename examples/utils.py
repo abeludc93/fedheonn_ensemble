@@ -5,16 +5,20 @@ incremental_utils.py
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Module containing auxiliary functions used in incremental examples
 """
-import copy
 # Standard libraries
 from random import seed, shuffle, randint
 # Third-party libraries
 import numpy as np
-import matplotlib.pyplot as plt
+from sklearn.datasets import load_digits
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+# Application modules
 from algorithm.fedHEONN_clients import FedHEONN_classifier, FedHEONN_regressor
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
+from auxiliary.logger import logger as log
+
 
 # Seed random numbers
 seed(1)
@@ -32,6 +36,7 @@ def get_prediction(ex_client, coord, testX, testT, regression=True):
     else:
         # Global precision for all outputs
         metric = 100 * accuracy_score(testT, test_y)
+
     return metric
 
 
@@ -43,7 +48,7 @@ def group_clients(list_clients, ngroups, randomize=False):
     if not randomize:
         # Group said clients
         for i in range(0, len(list_clients), ngroups):
-            print(f"Grouping clients: ({i}:{i + ngroups})")
+            log.info(f"\t\tGrouping clients: ({i}:{i + ngroups})")
             group = list_clients[i:i + ngroups]
             groups.append(group)
     else:
@@ -53,27 +58,31 @@ def group_clients(list_clients, ngroups, randomize=False):
             n_groups_rnd = randint(ngroups // 2, 2 * ngroups)
             if idx + n_groups_rnd > len(list_clients):
                 n_groups_rnd = len(list_clients) - idx
-            print(f"Grouping clients: ({idx}:{idx + n_groups_rnd})")
+            log.info(f"\t\tGrouping clients randomly: ({idx}:{idx + n_groups_rnd})")
             group = list_clients[idx:idx + n_groups_rnd]
             groups.append(group)
             idx += n_groups_rnd
+
     return groups
 
 
 # Function that returns the auxiliary matrix's M & US of a group of clients
 def get_params_group(group):
+    # M&US group matrix's
     M_grp, US_grp = [], []
-    for _, client in enumerate(group):
+    for client in group:
         M_c, US_c = client.get_param()
+        # Append to list of matrix's
         M_grp.append(M_c)
         US_grp.append(US_c)
+
     return M_grp, US_grp
 
 
 # Function that performs an 'incremental' fit on the given list of clients, aggregating then as sequential batches and
 # returning the mean squared error and optimal weights on the test data
 def incremental_fit(list_clients, coord, ngroups, testX, testT, regression=True, random_groups=False):
-    # Flag to realize predictions after processing each group
+    # Flag to make predictions after incrementally processing each group
     debug = True
     # Shuffle client list
     shuffle(list_clients)
@@ -83,26 +92,26 @@ def incremental_fit(list_clients, coord, ngroups, testX, testT, regression=True,
         M_grp, US_grp = get_params_group(group=group)
         # Aggregate partial model info
         coord.aggregate_partial(M_list=M_grp, US_list=US_grp)
-        # Calc. optim weights and realize current predictions
+        # Calculate opt. weights and realize current predictions
         if debug:
             coord.calculate_weights()
-            print(f"\t***Test MSE incremental (group {ig+1}): "
-                  f"{get_prediction(list_clients[0], coord, testX, testT, regression=regression):0.8f}")
-    # Calculate optimal weights
+            metric_debug = get_prediction(list_clients[0], coord, testX, testT, regression=regression)
+            log.debug(f"\t\tTest MSE incremental (group {ig+1}): {metric_debug:0.4f}")
+    # Calculate opt. weights
     coord.calculate_weights()
     # Metrics
     metric = get_prediction(list_clients[0], coord, testX, testT, regression=regression)
+
     return metric, coord.send_weights()
 
 
 # Function that performs a 'global' fit on the given list of clients, aggregating them separately and returning the
-# mean squared error and optimal weights on the test data
+# metric and optimal weights on the test data
 def global_fit(list_clients, coord, testX, testT, regression=True):
     # Shuffle client list
     shuffle(list_clients)
     # Fit the clients with their local data
-    M  = []
-    US = []
+    M , US = [], []
     for client in list_clients:
         M_c, US_c = client.get_param()
         M.append(M_c)
@@ -112,9 +121,10 @@ def global_fit(list_clients, coord, testX, testT, regression=True):
     coord.aggregate(M, US)
     # Metrics
     metric = get_prediction(list_clients[0], coord, testX, testT, regression=regression)
+
     return  metric, coord.send_weights()
 
-# Function that compares optimal weights w1 and w2, checking if they are equal to a certain tolerance
+# Function that compares model weights w1 and w2, checking if they are equal to a certain tolerance
 def check_weights(w1, w2, encrypted):
     for i in range(len(w1)):
         # If encrypted, decrypt data
@@ -124,14 +134,14 @@ def check_weights(w1, w2, encrypted):
         # Dif. tolerance
         tol = abs(min(w1[i].min(), w2[i].min())) / 100
         check = np.allclose(w1[i], w2[i], atol=tol)
-        print(f"Comparing W_glb[{i}] with W_inc[{i}]: {'OK' if check else 'KO'}")
+        log.info(f"\tComparing W_glb[{i}] with W_inc[{i}]: {'OK' if check else 'KO'}")
         if not check:
             # Print relative difference amongst weight elements
             diff = abs((w1[i] - w2[i]) / w1[i] * 100)
-            print(f"DIFF %: {['{:.2f}%'.format(val) for val in diff]}")
+            log.debug(f"\t\tDIFF %: {['{:.2f}%'.format(val) for val in diff]}")
 
 #Function used to create and fit a list of n_clients on train data trainX
-def create_list_clients(n_clients, trainX, trainY, regression, f_act, enc, spr, ctx, ens_client):
+def create_list_clients(n_clients, trainX, trainY, regression, f_act, enc, spr, ctx, ens_client, coord=None):
     n = len(trainY)
     # Create a list of clients and fit clients with their local data
     lst_clients = []
@@ -142,57 +152,56 @@ def create_list_clients(n_clients, trainX, trainY, regression, f_act, enc, spr, 
             client = FedHEONN_regressor(f=f_act, encrypted=enc, sparse=spr, context=ctx, ensemble=ens_client)
         else:
             client = FedHEONN_classifier(f=f_act, encrypted=enc, sparse=spr, context=ctx, ensemble=ens_client)
-        print(f"Training client: {i+1} of {n_clients} ({min(rang)}-{max(rang)})")
+        log.info(f"\tTraining client: {i+1} of {n_clients} ({min(rang)}-{max(rang)})")
         # Fit client local data
+        if ens_client:
+            client.set_idx_feats(coord.send_idx_feats())
         client.fit(trainX[rang], trainY[rang])
+
         lst_clients.append(client)
 
     return lst_clients
 
-# Function used to perform
-def grid_search(range_lambda, range_estimators, n_clients, trainX, testX, trainY, testY, regression, f_act, enc, spr, ctx):
-    ens_coord = {'bagging'}
-    ens_client = {'bagging':1}
-    graph_x, graph_y, graph_z = [], [], []
-    # Create hyperparam grid
-    print(f"GRID-SEARCH over {len(range_lambda)} x {len(range_estimators)} = {len(range_lambda)*len(range_estimators)}")
-    for i in range_lambda:
-        graph_x_row, graph_y_row, graph_z_row = [], [], []
-        for j in range_estimators:
-            print(f"\tPerforming grid-search: lambda ({i:.2f}) - n_estimators ({j})")
-            lam = i
-            ens_client["bagging"] = j
-            list_clients = create_list_clients(n_clients, trainX, trainY, regression, f_act, enc, spr, ctx, ens_client)
-            coord = FedHEONN_coordinator(lam=lam, ensemble=ens_coord, f=f_act, encrypted=enc, sparse=spr)
-            metric, _ = global_fit(list_clients, coord, testX, testY, regression)
-            graph_x_row.append(i);graph_y_row.append(j);graph_z_row.append(metric)
-            print(f"\tMetric achieved: {metric:.4f}\n")
-        graph_x.append(graph_x_row);graph_y.append(graph_y_row);graph_z.append(graph_z_row)
-    graph_x, graph_y, graph_z = np.array(graph_x), np.array(graph_y), np.array(graph_z)
-    if regression:
-        #MSE
-        best = np.min(graph_z)
-        pos_best = np.argwhere(graph_z == np.min(graph_z))[0]
+# Function to load and prepara MNIST dataset
+def load_mnist_digits(f_test_size=0.3, b_preprocess=True, b_iid=True):
+    # Create and split classification dataset
+    digits = load_digits()
+    # flatten the images
+    n_samples = len(digits.images)
+    data = digits.images.reshape((n_samples, -1))
+    train_X, test_X, train_t, test_t = train_test_split(data, digits.target, test_size=f_test_size, random_state=42)
+
+    if b_preprocess:
+        # Data normalization (z-score): mean 0 and std 1
+        log.info("\t\tData normalization (z-score)")
+        scaler = StandardScaler().fit(train_X)
+        train_X = scaler.transform(train_X)
+        test_X = scaler.transform(test_X)
+
+    # Number of training and test data
+    n = len(train_t)
+
+    # Non-IID option: Sort training data by class
+    if not b_iid:
+        log.info('\t\tnon-IID scenario')
+        ind = np.argsort(train_t)
+        train_t = train_t[ind]
+        train_X = train_X[ind]
     else:
-        #ACCURACY
-        best = np.max(graph_z)
-        pos_best = np.argwhere(graph_z == np.max(graph_z))[0]
+        # Data are shuffled in case they come ordered by class
+        log.info('\t\tIID scenario')
+        ind_list = list(range(n))
+        np.random.seed(1)
+        np.random.shuffle(ind_list)
+        train_X = train_X[ind_list]
+        train_t = train_t[ind_list]
 
-    print(f"Best metric: {best:.4f}")
-    print(f"Optimum lambda: {graph_x[pos_best[0], pos_best[1]]:.2f}")
-    print(f"Optimum n_estimators: {graph_y[pos_best[0], pos_best[1]]}")
-    plot_grid_search(graph_x, graph_y, graph_z)
+    # Number of classes
+    n_classes = len(np.unique(train_t))
 
-# Function that plots a heat-map of the grid-search results
-def plot_grid_search(x,y,z):
-    z_min, z_max = z.min(), z.max()
-    z_rescaled = 100 * (z - z_min) / (z_max - z_min)
-    point_sizes = z_rescaled + 10
-    #plt.figure(figsize=(10, 8))
-    scatter = plt.scatter(x, y, c=z, s=point_sizes, cmap='viridis', alpha=0.9)
-    plt.colorbar(scatter, label='Valor de Z')
-    plt.xscale('log')
-    plt.xlabel(r'Regularization (\lambda)')
-    plt.ylabel('No. of estimators')
-    plt.title('Hyper-parameter grid-search:')
-    plt.show()
+    # One hot encoding for the targets
+    t_onehot = np.zeros((n, n_classes))
+    for i, value in enumerate(train_t):
+        t_onehot[i, value] = 1
+
+    return train_X, t_onehot, test_X, test_t, train_t

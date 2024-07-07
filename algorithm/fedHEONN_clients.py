@@ -135,18 +135,17 @@ class FedHEONN_client:
         # Parallelized fitting
         if not self.parallel:
             t_ini = time.perf_counter()
-            print(f"Doing serialized bagging fitting, number of estimators: {({n_estimators})}")
+            log.debug(f"\t\tDoing serialized bagging fitting, number of estimators: {({n_estimators})}")
             # Arrange each estimator
             for idx in range(n_estimators):
                 M_e, US_e = self._bagging_fit(X, t, p_samples, b_samples, n_outputs, idx)
                 # Append to master M&US matrix's
                 self.M.append(M_e)
                 self.US.append(US_e)
-            print(f"Serialized bagging fitting done in: {time.perf_counter() - t_ini} s")
+            log.info(f"\t\tSerialized bagging fitting done in: {time.perf_counter() - t_ini:.3f} s")
         else:
-            t_ini = time.perf_counter()
-            print(f"Doing parallelized bagging fitting with ({multiprocessing.cpu_count()}) cpu-cores, "
-                  f"number of estimators: {({n_estimators})}")
+            t_ini, cpu = time.perf_counter(), multiprocessing.cpu_count()
+            log.debug(f"\t\tDoing parallelized bagging, number of estimators: {({n_estimators})}")
             pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
             zip_iterable = zip(repeat(X), repeat(t), repeat(p_samples), repeat(b_samples), repeat(n_outputs),
                                list(range(n_estimators)))
@@ -156,7 +155,7 @@ class FedHEONN_client:
                 # Append to master M&US matrix's
                 self.M.append(M_e)
                 self.US.append(US_e)
-            print(f"Parallelized bagging fitting done in: {time.perf_counter()-t_ini} s")
+            log.info(f"\t\tParallelized ({cpu}) bagging fitting done in: {time.perf_counter()-t_ini:.3f} s")
 
     def _bagging_fit(self, X, t, p_samples, b_samples, n_outputs, estimator_idx):
         M_e, US_e = [], []
@@ -206,7 +205,8 @@ class FedHEONN_client:
             b_samples       = self.ensemble['bootstrap_samples'] if 'bootstrap_samples' in self.ensemble else True
             p_features      = self.ensemble['p_features'] if 'p_features' in self.ensemble else 1.0
             b_features      = self.ensemble['bootstrap_features'] if 'bootstrap_features' in self.ensemble else False
-        log.debug(f"n_estimators: {n_estimators} "
+        log.debug(f"\t\t"
+                  f"n_estimators: {n_estimators} "
                   f"(p_samples: {p_samples} b_samples: {b_samples}) "
                   f"(p_features:{p_features} b_features: {b_features})")
         return n_estimators, p_samples, b_samples, p_features, b_features
@@ -216,7 +216,8 @@ class FedHEONN_client:
         """Function to create random patches"""
         n_features, n_samples = X.shape
         idx_samples  = np.sort(np.random.choice(n_samples, size=int(n_samples * p_samples), replace=bootstrap_samples))
-        log.debug(f"Unique sample indexes: {len(np.unique(idx_samples))} "
+        log.debug(f"\t\t"
+                  f"Unique sample indexes: {len(np.unique(idx_samples))} "
                   f"Unique feature indexes: {len(np.unique(idx_features))}"
                   f"Feature indexes:\n{idx_features}\n")
         return X[:,idx_samples][idx_features,:], d[idx_samples, :]
