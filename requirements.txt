@@ -22,3 +22,5 @@ requests==2.31.0
 uvicorn==0.22.0
 # Type hints
 pydantic==2.0
+# Process and system monitoring
+psutil==5.9.2

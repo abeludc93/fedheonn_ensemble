@@ -3,6 +3,7 @@
 
 # Standard libraries
 import multiprocessing
+from psutil import cpu_count
 from itertools import repeat
 import time
 # Third-party libraries
@@ -11,6 +12,7 @@ import scipy as sp
 import tenseal as ts
 # Application modules
 from algorithm.activation_functions import _load_act_fn
+from auxiliary.decorators import time_func
 from auxiliary.logger import logger as log
 
 # Abstract client
@@ -149,9 +151,9 @@ class FedHEONN_client:
                 self.US.append(US_e)
             log.info(f"\t\tSerialized bagging fitting done in: {time.perf_counter() - t_ini:.3f} s")
         else:
-            t_ini, cpu = time.perf_counter(), multiprocessing.cpu_count()
+            t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
             log.debug(f"\t\tDoing parallelized bagging, number of estimators: {({n_estimators})}")
-            pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+            pool = multiprocessing.Pool(processes=cpu)
             zip_iterable = zip(repeat(X), repeat(t), repeat(p_samples), repeat(b_samples), repeat(n_outputs),
                                list(range(n_estimators)))
             # Blocks until ready, ordered results
@@ -294,6 +296,7 @@ class FedHEONN_classifier(FedHEONN_client):
         else:
             self.normal_fit(X=X, t=t_onehot)
 
+    @time_func
     def predict(self, X):
         # Transpose test data
         X = self._reshape(X).T

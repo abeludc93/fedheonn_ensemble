@@ -44,7 +44,7 @@ if __name__ == "__main__":
     # Number of clients
     n_clients = 2
     # Encryption
-    enc = False
+    enc = True
     # Sparse matrices
     spr = True
     # Regularization
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     # Preprocess data
     pre = True
     # Parallelized
-    par = False
+    par = True
     # Ensemble
     bag = True
     # Random Patches bagging parameters
