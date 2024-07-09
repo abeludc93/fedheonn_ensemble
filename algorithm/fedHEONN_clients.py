@@ -155,10 +155,13 @@ class FedHEONN_client:
             log.debug(f"\t\tDoing parallelized bagging, number of estimators: {({n_estimators})}")
             pool = multiprocessing.Pool(processes=cpu)
             zip_iterable = zip(repeat(X), repeat(t), repeat(p_samples), repeat(b_samples), repeat(n_outputs),
-                               list(range(n_estimators)))
+                               self.idx_feats, repeat(self.f_inv), repeat(self.fderiv), repeat(self.sparse))
             # Blocks until ready, ordered results
-            results = pool.starmap(self._bagging_fit, zip_iterable)
+            results = pool.starmap(FedHEONN_client.bagging_fit_static, zip_iterable)
             for M_e, US_e in results:
+                if self.encrypted:
+                    # Encrypt M_e's
+                    M_e = [ts.ckks_vector(self.context, M) for M in M_e]
                 # Append to master M&US matrix's
                 self.M.append(M_e)
                 self.US.append(US_e)
@@ -168,7 +171,7 @@ class FedHEONN_client:
         M_e, US_e = [], []
         X_bag, t_bag = self._random_patches(X, t, self.idx_feats[estimator_idx], p_samples, b_samples)
         # A model is generated for each output/class
-        for o in range(0, n_outputs):
+        for o in range(n_outputs):
             M, US = self._fit(X_bag, t_bag[:, o])
             M_e.append(M)
             US_e.append(US)
@@ -247,6 +250,51 @@ class FedHEONN_client:
         ensemble = {'bagging': n_estimators, 'p_samples': p_samples, 'bootstrap_samples': b_samples,
                     'p_features': p_features, 'bootstrap_features': b_features}
         return ensemble
+
+    @staticmethod
+    def fit_static(X, d, f_inv, fderiv, sparse):
+        # Number of data points (n)
+        n = np.size(X, 1)
+        # The bias is included as the first input (first row)
+        Xp = np.insert(X, 0, np.ones(n), axis=0)
+        # Inverse of the neural function
+        inv_d = f_inv(d)
+        # Derivative of the neural function
+        der_d = fderiv(inv_d)
+
+        if sparse:
+            # Diagonal sparse matrix
+            F_sparse = sp.sparse.spdiags(der_d, 0, der_d.size, der_d.size, format="csr")
+            # Matrix on which the Singular Value Decomposition will be calculated later
+            H = Xp @ F_sparse
+            # Singular Value Decomposition of H
+            U, S, _ = sp.linalg.svd(H, full_matrices=False)
+            # Calculate M
+            M = Xp @ (F_sparse @ (F_sparse @ inv_d.T))
+            M = M.flatten()
+        else:
+            # Diagonal matrix
+            F = np.diag(der_d)
+            # Matrix on which the Singular Value Decomposition will be calculated later
+            H = Xp @ F
+            # Singular Value Decomposition of H
+            U, S, _ = sp.linalg.svd(H, full_matrices=False)
+            # Calculate M
+            M = Xp @ (F @ (F @ inv_d))
+
+        return M, U @ np.diag(S)
+
+    @staticmethod
+    def bagging_fit_static(X, t, p_samples, b_samples, n_outputs, idx_feats, f_inv, fderiv, sparse):
+        M_e, US_e = [], []
+        X_bag, t_bag = FedHEONN_client._random_patches(X, t, idx_feats, p_samples, b_samples)
+        # A model is generated for each output/class
+        for o in range(0, n_outputs):
+            M, US = FedHEONN_client.fit_static(X_bag, t_bag[:, o], f_inv, fderiv, sparse)
+            M_e.append(M)
+            US_e.append(US)
+        return M_e, US_e
+
 
 class FedHEONN_regressor(FedHEONN_client):
     """FedHEONN client for regression tasks"""
