@@ -9,6 +9,7 @@ Module containing auxiliary functions used in incremental examples
 from random import seed, shuffle, randint
 # Third-party libraries
 import numpy as np
+import pandas as pd
 from sklearn.datasets import load_digits
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import accuracy_score
@@ -32,7 +33,7 @@ def get_prediction(ex_client, coord, testX, testT, regression=True):
     test_y = ex_client.predict(testX)
     if regression:
         # Global MSE for the 3 outputs
-        metric = 100 * mean_squared_error(testT, test_y)
+        metric = 100 * mean_squared_error(testT, test_y) # TODO: no es un porcentaje
     else:
         # Global precision for all outputs
         metric = 100 * accuracy_score(testT, test_y)
@@ -162,14 +163,81 @@ def create_list_clients(n_clients, trainX, trainY, regression, f_act, enc, spr, 
 
     return lst_clients
 
-# Function to load and prepara MNIST dataset
+# Function to load and prepare MNIST dataset
 def load_mnist_digits(f_test_size=0.3, b_preprocess=True, b_iid=True):
+    log.info("[*] MNIST DIGITS DATASET [*]")
     # Create and split classification dataset
     digits = load_digits()
     # flatten the images
     n_samples = len(digits.images)
     data = digits.images.reshape((n_samples, -1))
     train_X, test_X, train_t, test_t = train_test_split(data, digits.target, test_size=f_test_size, random_state=42)
+
+    if b_preprocess:
+        # Data normalization (z-score): mean 0 and std 1
+        log.info("\t\tData normalization (z-score)")
+        scaler = StandardScaler().fit(train_X)
+        train_X = scaler.transform(train_X)
+        test_X = scaler.transform(test_X)
+
+    # Number of training and test data
+    n = len(train_t)
+
+    # Non-IID option: Sort training data by class
+    if not b_iid:
+        log.info('\t\tnon-IID scenario')
+        ind = np.argsort(train_t)
+        train_t = train_t[ind]
+        train_X = train_X[ind]
+    else:
+        # Data are shuffled in case they come ordered by class
+        log.info('\t\tIID scenario')
+        ind_list = list(range(n))
+        np.random.seed(1)
+        np.random.shuffle(ind_list)
+        train_X = train_X[ind_list]
+        train_t = train_t[ind_list]
+
+    # Number of classes
+    n_classes = len(np.unique(train_t))
+
+    # One hot encoding for the targets
+    t_onehot = np.zeros((n, n_classes))
+    for i, value in enumerate(train_t):
+        t_onehot[i, value] = 1
+
+    return train_X, t_onehot, test_X, test_t, train_t
+
+# Function to load and prepare Dry-Bean dataset
+def load_carbon_nanotube(f_test_size=0.3, b_preprocess=True):
+    log.info("[*] CARBON NANOTUBE DATASET [*]")
+    # Read dataset
+    Data = pd.read_csv('../datasets/carbon_nanotubes.csv', delimiter=';')
+    Inputs = Data.iloc[:, :-3].to_numpy()
+    Targets = Data.iloc[:, -3:].to_numpy()  # 3 outputs to predict
+
+    # Split
+    train_X, test_X, train_t, test_t = train_test_split(Inputs, Targets, test_size=f_test_size, random_state=42)
+
+    if b_preprocess:
+        # Data normalization (z-score): mean 0 and std 1
+        log.info("\t\tData normalization (z-score)")
+        scaler = StandardScaler().fit(train_X)
+        train_X = scaler.transform(train_X)
+        test_X = scaler.transform(test_X)
+
+    return train_X, train_t, test_X, test_t
+
+# Function to load and prepare Dry_Bean dataset
+def load_dry_bean(f_test_size=0.3, b_preprocess=True, b_iid=True):
+    log.info("[*] DRY BEAN DATASET [*]")
+    # Read dataset
+    Data = pd.read_excel('../datasets/Dry_Bean_Dataset.xlsx', sheet_name='Dry_Beans_Dataset')
+    Data['Class'] = Data['Class'].map(
+        {'BARBUNYA': 0, 'BOMBAY': 1, 'CALI': 2, 'DERMASON': 3, 'HOROZ': 4, 'SEKER': 5, 'SIRA': 6})
+    Inputs = Data.iloc[:, :-1].to_numpy()
+    Labels = Data.iloc[:, -1].to_numpy()
+    train_X, test_X, train_t, test_t = train_test_split(Inputs, Labels, test_size=f_test_size, random_state=42)
 
     if b_preprocess:
         # Data normalization (z-score): mean 0 and std 1

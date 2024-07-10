@@ -6,7 +6,7 @@ from algorithm.fedHEONN_clients import FedHEONN_classifier
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from auxiliary.decorators import time_func
 from auxiliary.logger import logger as log
-from examples.utils import global_fit, load_mnist_digits
+from examples.utils import global_fit, load_dry_bean
 
 
 @time_func
@@ -56,11 +56,11 @@ if __name__ == "__main__":
     # Preprocess data
     pre = True
     # Parallelized
-    par = True
+    par = False
     # Ensemble
     bag = True
     # Random Patches bagging parameters
-    n_estimators = 5
+    n_estimators = 40
     p_samples = 1.0
     b_samples = False
     p_feat = 1.0
@@ -87,7 +87,7 @@ if __name__ == "__main__":
 
     # Load dataset
     np.random.seed(1)
-    trainX, trainY_onehot, testX, testY, trainY = load_mnist_digits(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
+    trainX, trainY_onehot, testX, testY, trainY = load_dry_bean(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
 
     # Parallel MAIN FUNCTION
     main()

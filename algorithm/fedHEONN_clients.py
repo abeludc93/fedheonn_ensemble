@@ -158,10 +158,14 @@ class FedHEONN_client:
                                self.idx_feats, repeat(self.f_inv), repeat(self.fderiv), repeat(self.sparse))
             # Blocks until ready, ordered results
             results = pool.starmap(FedHEONN_client.bagging_fit_static, zip_iterable)
-            for M_e, US_e in results:
+            print(f"Bagging ({n_estimators} estimators) SVD-part done in : {time.perf_counter()-t_ini:.3f} s")
+            t_enc = time.perf_counter()
+            for idx, (M_e, US_e) in enumerate(results):
                 if self.encrypted:
                     # Encrypt M_e's
                     M_e = [ts.ckks_vector(self.context, M) for M in M_e]
+                if idx == len(results) -1:
+                    print(f"Bagging ({n_estimators} estimators) ENC-part done in : {time.perf_counter() - t_enc:.3f} s")
                 # Append to master M&US matrix's
                 self.M.append(M_e)
                 self.US.append(US_e)

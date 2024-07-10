@@ -2,12 +2,11 @@
 # -*- coding: UTF-8 -*-
 
 import numpy as np
-from algorithm.fedHEONN_clients import FedHEONN_classifier
-from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from auxiliary.decorators import time_func
 from auxiliary.logger import logger as log
-from examples.utils import global_fit, load_mnist_digits
-
+from examples.utils import global_fit, load_carbon_nanotube
+from algorithm.fedHEONN_clients import FedHEONN_regressor
+from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 
 @time_func
 def main():
@@ -22,22 +21,22 @@ def main():
 
     # Create a list of clients and fit clients with their local data
     lst_clients = []
-    for i in range(0, n_clients):
+    for i in range(n_clients):
         # Split train equally data among clients
         rang = range(int(i * n / n_clients), int(i * n / n_clients) + int(n / n_clients))
-        client = FedHEONN_classifier(f=f_act, encrypted=enc, sparse=spr, context=ctx, ensemble=ens_client, parallel=par)
+        client = FedHEONN_regressor(f=f_act, encrypted=enc, sparse=spr, context=ctx, ensemble=ens_client, parallel=par)
         log.info(f"\t\tTraining client: {i+1} of {n_clients} ({min(rang)}-{max(rang)})")
         if ens_client:
             client.set_idx_feats(coordinator.send_idx_feats())
         # Fit client local data
-        client.fit(trainX[rang], trainY_onehot[rang])
+        client.fit(trainX[rang], trainY[rang])
         lst_clients.append(client)
 
     # PERFORM GLOBAL FIT
-    acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator, testX=testX, testT=testY, regression=False)
+    acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator, testX=testX, testT=testY, regression=True)
 
     # Print model's metrics
-    log.info(f"Test accuracy global: {acc_glb:0.2f}")
+    log.info(f"Test MSE global: {acc_glb:0.8f}")
 
 if __name__ == "__main__":
     # ---- MODEL HYPERPARAMETERS----
@@ -50,9 +49,7 @@ if __name__ == "__main__":
     # Regularization
     lam = 0.01
     # Activation function
-    f_act = 'logs'
-    # IID or non-IID scenario (True or False)
-    iid = True
+    f_act = 'linear'
     # Preprocess data
     pre = True
     # Parallelized
@@ -60,7 +57,7 @@ if __name__ == "__main__":
     # Ensemble
     bag = True
     # Random Patches bagging parameters
-    n_estimators = 5
+    n_estimators = 50
     p_samples = 1.0
     b_samples = False
     p_feat = 1.0
@@ -87,7 +84,7 @@ if __name__ == "__main__":
 
     # Load dataset
     np.random.seed(1)
-    trainX, trainY_onehot, testX, testY, trainY = load_mnist_digits(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
+    trainX, trainY, testX, testY = load_carbon_nanotube(f_test_size=0.3, b_preprocess=pre)
 
     # Parallel MAIN FUNCTION
     main()
