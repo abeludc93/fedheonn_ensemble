@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
+# Standard libraries
+import time
+import multiprocessing
+import tempfile
+import os
+from itertools import repeat
 # Third-party libraries
 import numpy as np
 import scipy as sp
+from psutil import cpu_count
+import tenseal as ts
 # Application modules
 from algorithm.activation_functions import _load_act_fn
 from auxiliary.decorators import time_func
+from auxiliary.logger import logger as log
 
 class FedHEONN_coordinator:
     def __init__(self, f: str='logs', lam: float=0, encrypted: bool=True, sparse: bool=True, ensemble: {}=None,
@@ -26,9 +35,19 @@ class FedHEONN_coordinator:
         # Auxiliary list for attribute indexes
         self.idx_feats  = []
 
-    def _aggregate(self, M_list, US_list):
+    @staticmethod
+    def _aggregate(M_list, US_list, lam, sparse, encrypted, parallel=False, ctx_str=None):
         # Number of classes
         n_classes = len(M_list[0])
+        n_clients = len(M_list)
+
+        # Deserialize in case of encrypted and parallel configuration
+        ctx = None
+        if encrypted and parallel:
+            ctx = FedHEONN_coordinator.load_context(ctx_str)
+            for i in range(n_clients):
+                M_list[i] = [ts.ckks_vector_from(ctx, m) for m in M_list[i]]
+
 
         # Optimal weights
         W_out = []
@@ -53,14 +72,14 @@ class FedHEONN_coordinator:
                     U, S, _ = sp.linalg.svd(np.concatenate((US_k, US), axis=1), full_matrices=False)
                     US = U @ np.diag(S)
 
-            if self.sparse:
+            if sparse:
                 I_ones = np.ones(np.size(S))
                 I_sparse = sp.sparse.spdiags(I_ones, 0, I_ones.size, I_ones.size, format="csr")
                 S_sparse = sp.sparse.spdiags(S, 0, S.size, S.size, format="csr")
-                aux2 = S_sparse * S_sparse + self.lam * I_sparse
+                aux2 = S_sparse * S_sparse + lam * I_sparse
 
                 # Optimal weights: the order of the multiplications has been rearranged to optimize the speed
-                if self.encrypted:
+                if encrypted:
                     aux2 = aux2.toarray()
                     w = (M.matmul(U)).matmul((U @ np.linalg.pinv(aux2)).T)
                 else:
@@ -68,12 +87,12 @@ class FedHEONN_coordinator:
                     w = U @ (np.linalg.pinv(aux2) @ (U.transpose() @ M))
             else:
                 # Optimal weights: the order of the multiplications has been rearranged to optimize the speed
-                if self.encrypted:
-                    w = (M.matmul(U)).matmul((U @ (np.diag(1 / (S * S + self.lam * (np.ones(np.size(S))))))).T)
+                if encrypted:
+                    w = (M.matmul(U)).matmul((U @ (np.diag(1 / (S * S + lam * (np.ones(np.size(S))))))).T)
                 else:
-                    w = U @ (np.diag(1 / (S * S + self.lam * (np.ones(np.size(S))))) @ (U.transpose() @ M))
+                    w = U @ (np.diag(1 / (S * S + lam * (np.ones(np.size(S))))) @ (U.transpose() @ M))
 
-            W_out.append(w)
+            W_out.append(w.serialize() if encrypted and parallel else w)
 
         return W_out
 
@@ -101,12 +120,45 @@ class FedHEONN_coordinator:
         if self.ensemble and "bagging" in self.ensemble:
             # Aggregate each estimators output
             n_estimators = len(US_list[0])
-            for i in range(n_estimators):
-                M_base_lst = [M[i] for M in M_list]
-                US_base_lst = [US[i] for US in US_list]
-                self.W.append(self._aggregate(M_base_lst, US_base_lst))
+            n_clients = len(US_list)
+
+            # Parallelized aggregation
+            if self.parallel:
+                ctx_str, ctx = None, None
+                if self.encrypted:
+                    ctx_str, ctx = FedHEONN_coordinator.save_context_from(M_list[0][0][0])
+                M_base = []
+                US_base = []
+                for i in range(n_estimators):
+                    M_base.append([M[i] for M in M_list])
+                    US_base.append([US[i] for US in US_list])
+                    if self.encrypted:
+                        for j in range(n_clients):
+                            M_base[i][j] = [m.serialize() for m in M_base[i][j]]
+                t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
+                log.debug(f"\t\tDoing parallelized aggregation, number of estimators: {({n_estimators})}")
+                pool = multiprocessing.Pool(processes=cpu)
+                iterable = [[M_base[k], US_base[k], self.lam, self.sparse, self.encrypted, self.parallel, ctx_str]
+                            for k in range(n_estimators)]
+                # Blocks until ready, ordered results
+                results = pool.starmap(FedHEONN_coordinator._aggregate, iterable)
+                for w in results:
+                    if self.encrypted:
+                        self.W.append([ts.ckks_vector_from(ctx, w_item) for w_item in w])
+                    else:
+                        self.W.append(w)
+                log.info(f"\t\tParallelized ({cpu}) aggregation done in: {time.perf_counter() - t_ini:.3f} s")
+                if self.encrypted:
+                    os.remove(ctx_str)
+            else:
+                for i in range(n_estimators):
+                    M_base_lst = [M[i] for M in M_list]
+                    US_base_lst = [US[i] for US in US_list]
+                    self.W.append(FedHEONN_coordinator._aggregate(M_list=M_base_lst, US_list=US_base_lst, lam=self.lam,
+                                                                  sparse=self.sparse, encrypted=self.encrypted))
         else:
-            self.W = self._aggregate(M_list, US_list)
+            self.W = FedHEONN_coordinator._aggregate(M_list=M_list, US_list=US_list, lam=self.lam,
+                                                     sparse=self.sparse, encrypted=self.encrypted)
 
     @time_func
     def aggregate_partial(self, M_list, US_list):
@@ -122,12 +174,14 @@ class FedHEONN_coordinator:
             for i in range(n_estimators):
                 M_base_lst = [M[i] for M in M_list]
                 US_base_lst = [US[i] for US in US_list]
-                self._aggregate_partial(M_list=M_base_lst, US_list=US_base_lst,
-                                        M_glb=self.M_glb[i], U_glb=self.U_glb[i], S_glb=self.S_glb[i])
+                FedHEONN_coordinator._aggregate_partial(M_list=M_base_lst, US_list=US_base_lst,
+                                                        M_glb=self.M_glb[i], U_glb=self.U_glb[i], S_glb=self.S_glb[i])
         else:
-            self._aggregate_partial(M_list=M_list, US_list=US_list, M_glb=self.M_glb, U_glb=self.U_glb, S_glb=self.S_glb)
+            FedHEONN_coordinator._aggregate_partial(M_list=M_list, US_list=US_list,
+                                                    M_glb=self.M_glb, U_glb=self.U_glb, S_glb=self.S_glb)
 
-    def _aggregate_partial(self, M_list, US_list, M_glb, U_glb, S_glb):
+    @staticmethod
+    def _aggregate_partial(M_list, US_list, M_glb, U_glb, S_glb):
         # Aggregates partial M&US lists to the model
 
         # Number of classes
@@ -240,3 +294,23 @@ class FedHEONN_coordinator:
     @staticmethod
     def generate_ensemble_params():
         return {'bagging'}
+
+
+    @staticmethod
+    def load_context(ctx_str):
+        print(f"Loading context from: ({ctx_str})")
+        with open(ctx_str, "rb") as f:
+            loaded_context = ts.context_from(f.read())
+        return loaded_context
+
+    @staticmethod
+    def save_context_from(tenseal_vector):
+        ctx = tenseal_vector.context()
+        tmp = tempfile.NamedTemporaryFile(delete=False)
+        tmp_filename = tmp.name
+        with open(tmp_filename, "wb") as ctx_32k:
+            ctx_32k.write(ctx.serialize(save_public_key=True,
+                                        save_secret_key=False,
+                                        save_galois_keys=True,
+                                        save_relin_keys=True))
+        return tmp_filename, ctx

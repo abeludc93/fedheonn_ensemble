@@ -12,7 +12,7 @@ from examples.utils import global_fit, incremental_fit, load_mnist_digits
 @time_func
 def main():
     # Create the coordinator
-    coordinator = FedHEONN_coordinator(f=f_act, lam=lam, encrypted=enc, ensemble=ens_coord)
+    coordinator = FedHEONN_coordinator(f=f_act, lam=lam, encrypted=enc, ensemble=ens_coord, parallel=par_coord)
 
     # Train data length
     n, n_attributes = trainX.shape
@@ -34,18 +34,18 @@ def main():
         lst_clients.append(client)
 
     # PERFORM GLOBAL FIT
-    #acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator, testX=testX, testT=testY, regression=False)
-    acc_inc, _ = incremental_fit(list_clients=lst_clients, coord=coordinator, ngroups=1, testX=testX, testT=testY,
-                                 regression=False, random_groups=False)
+    acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator, testX=testX, testT=testY, regression=False)
+    #acc_inc, _ = incremental_fit(list_clients=lst_clients, coord=coordinator, ngroups=1, testX=testX, testT=testY,
+    #                             regression=False, random_groups=False)
 
     # Print model's metrics
-    #log.info(f"Test accuracy global: {acc_glb:0.2f}")
-    log.info(f"Test accuracy incremental: {acc_inc:0.2f}")
+    log.info(f"Test accuracy global: {acc_glb:0.2f}")
+    #log.info(f"Test accuracy incremental: {acc_inc:0.2f}")
 
 if __name__ == "__main__":
     # ---- MODEL HYPERPARAMETERS----
     # Number of clients
-    n_clients = 1
+    n_clients = 3
     # Encryption
     enc = True
     # Sparse matrices
@@ -60,10 +60,11 @@ if __name__ == "__main__":
     pre = True
     # Parallelized
     par = False
+    par_coord = True
     # Ensemble
     bag = True
     # Random Patches bagging parameters
-    n_estimators = 5
+    n_estimators = 2
     p_samples = 1.0
     b_samples = False
     p_feat = 1.0
