@@ -87,7 +87,7 @@ class FedHEONN_client:
         y = np.empty((0, n), float)
 
         # For each output neuron
-        for o in range(0, n_outputs):
+        for o in range(n_outputs):
             # If the weights are encrypted then they are decrypted to get the performance results
             if self.encrypted:
                 W = np.array((self.W[o]).decrypt())
@@ -158,14 +158,14 @@ class FedHEONN_client:
                                self.idx_feats, repeat(self.f_inv), repeat(self.fderiv), repeat(self.sparse))
             # Blocks until ready, ordered results
             results = pool.starmap(FedHEONN_client.bagging_fit_static, zip_iterable)
-            print(f"Bagging ({n_estimators} estimators) SVD-part done in : {time.perf_counter()-t_ini:.3f} s")
+            log.debug(f"Bagging ({n_estimators} estimators) SVD-part done in : {time.perf_counter()-t_ini:.3f} s")
             t_enc = time.perf_counter()
             for idx, (M_e, US_e) in enumerate(results):
                 if self.encrypted:
                     # Encrypt M_e's
                     M_e = [ts.ckks_vector(self.context, M) for M in M_e]
                 if idx == len(results) -1:
-                    print(f"Bagging ({n_estimators} estimators) ENC-part done in : {time.perf_counter() - t_enc:.3f} s")
+                    log.debug(f"Bagging ({n_estimators} estimators) ENC-part done in : {time.perf_counter() - t_enc:.3f} s")
                 # Append to master M&US matrix's
                 self.M.append(M_e)
                 self.US.append(US_e)
@@ -186,7 +186,7 @@ class FedHEONN_client:
         _, n_outputs = t.shape
 
         # A model is generated for each output/class
-        for o in range(0, n_outputs):
+        for o in range(n_outputs):
             M, US = self._fit(X, t[:, o])
             self.M.append(M)
             self.US.append(US)
@@ -225,8 +225,8 @@ class FedHEONN_client:
                   f"(p_features:{p_features} b_features: {b_features})")
         return n_estimators, p_samples, b_samples, p_features, b_features
 
-    def _set_ensemble_params(self, ensemble={}):
-        self.ensemble = ensemble
+    def _set_ensemble_params(self, ensemble=None):
+        self.ensemble = {} if ensemble is None else ensemble
 
     @staticmethod
     def _random_patches(X, d, idx_features, p_samples=1.0, bootstrap_samples=True):
@@ -293,7 +293,7 @@ class FedHEONN_client:
         M_e, US_e = [], []
         X_bag, t_bag = FedHEONN_client._random_patches(X, t, idx_feats, p_samples, b_samples)
         # A model is generated for each output/class
-        for o in range(0, n_outputs):
+        for o in range(n_outputs):
             M, US = FedHEONN_client.fit_static(X_bag, t_bag[:, o], f_inv, fderiv, sparse)
             M_e.append(M)
             US_e.append(US)

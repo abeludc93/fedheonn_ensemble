@@ -6,6 +6,7 @@ import numpy as np
 import scipy as sp
 # Application modules
 from algorithm.activation_functions import _load_act_fn
+from auxiliary.decorators import time_func
 
 class FedHEONN_coordinator:
     def __init__(self, f: str='logs', lam: float=0, encrypted: bool=True, sparse: bool=True, ensemble: {}=None ):
@@ -40,11 +41,15 @@ class FedHEONN_coordinator:
             M_rest = [item[c] for item in M_list[1:]]
             US_rest = [item[c] for item in US_list[1:]]
 
-            # Aggregation of M and US from the second client to the last
-            for M_k, US_k in zip(M_rest, US_rest):
-                M = M + M_k
-                U, S, _ = sp.linalg.svd(np.concatenate((US_k, US), axis=1), full_matrices=False)
-                US = U @ np.diag(S)
+            if not (M_rest and US_rest):
+                # Only one client
+                U, S, _ = sp.linalg.svd(US, full_matrices=False)
+            else:
+                # Aggregation of M and US from the second client to the last
+                for M_k, US_k in zip(M_rest, US_rest):
+                    M = M + M_k
+                    U, S, _ = sp.linalg.svd(np.concatenate((US_k, US), axis=1), full_matrices=False)
+                    US = U @ np.diag(S)
 
             if self.sparse:
                 I_ones = np.ones(np.size(S))
@@ -86,6 +91,7 @@ class FedHEONN_coordinator:
     def send_idx_feats(self):
         return self.idx_feats
 
+    @time_func
     def aggregate(self, M_list, US_list):
         # Aggregates entire M&US lists at once
 
@@ -100,6 +106,7 @@ class FedHEONN_coordinator:
         else:
             self.W = self._aggregate(M_list, US_list)
 
+    @time_func
     def aggregate_partial(self, M_list, US_list):
         # Aggregates partial M&US lists
 
@@ -144,11 +151,16 @@ class FedHEONN_coordinator:
                 M_rest  = [item[c] for item in M_list[:]]
                 US_rest = [item[c] for item in US_list[:]]
 
-            # Aggregation of M and US
-            for M_k, US_k in zip(M_rest, US_rest):
-                M = M + M_k
-                U, S, _ = sp.linalg.svd(np.concatenate((US_k, US),axis=1), full_matrices=False)
-                US = U @ np.diag(S)
+
+            if not (M_rest and US_rest):
+                # Only one client
+                U, S, _ = sp.linalg.svd(US, full_matrices=False)
+            else:
+                # Aggregation of M and US from the second client to the last
+                for M_k, US_k in zip(M_rest, US_rest):
+                    M = M + M_k
+                    U, S, _ = sp.linalg.svd(np.concatenate((US_k, US),axis=1), full_matrices=False)
+                    US = U @ np.diag(S)
 
             # Save contents
             if init:
@@ -160,6 +172,7 @@ class FedHEONN_coordinator:
                 U_glb[c] = U
                 S_glb[c] = S
 
+    @time_func
     def calculate_weights(self):
         # Calculate weights
         self.W = []
@@ -182,8 +195,8 @@ class FedHEONN_coordinator:
         if M_glb and U_glb and S_glb:
 
             # Number of classes/outputs
-            nclasses = len(M_glb)
-            for c in range(0, nclasses):
+            n_classes = len(M_glb)
+            for c in range(n_classes):
 
                 # For each output calculate optimal weights
                 M = M_glb[c]

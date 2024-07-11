@@ -90,6 +90,6 @@ def time_func(func: Callable) -> Callable:
         start = perf_counter()
         output = func(*args, **kwargs)
         end = perf_counter()
-        log.info("Elapsed time running [%s]: [%.3e] seconds", func.__name__, end - start)
+        log.info("Elapsed time running [%s]: [%.3f] seconds", func.__name__, end - start)
         return output
     return _wrapper

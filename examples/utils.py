@@ -47,13 +47,13 @@ def group_clients(list_clients, ngroups, randomize=False):
     groups = []
     # Flag to randomize the number of clients per group
     if not randomize:
-        # Group said clients
+        # Group clients
         for i in range(0, len(list_clients), ngroups):
             log.info(f"\t\tGrouping clients: ({i}:{i + ngroups})")
             group = list_clients[i:i + ngroups]
             groups.append(group)
     else:
-        # Group randomly said clients
+        # Group clients randomly
         idx = 0
         while idx < len(list_clients):
             n_groups_rnd = randint(ngroups // 2, 2 * ngroups)
@@ -84,7 +84,7 @@ def get_params_group(group):
 # returning the mean squared error and optimal weights on the test data
 def incremental_fit(list_clients, coord, ngroups, testX, testT, regression=True, random_groups=False):
     # Flag to make predictions after incrementally processing each group
-    debug = True
+    debug = False
     # Shuffle client list
     shuffle(list_clients)
     # Group clients
