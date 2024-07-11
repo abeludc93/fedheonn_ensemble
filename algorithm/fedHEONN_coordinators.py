@@ -9,7 +9,8 @@ from algorithm.activation_functions import _load_act_fn
 from auxiliary.decorators import time_func
 
 class FedHEONN_coordinator:
-    def __init__(self, f: str='logs', lam: float=0, encrypted: bool=True, sparse: bool=True, ensemble: {}=None ):
+    def __init__(self, f: str='logs', lam: float=0, encrypted: bool=True, sparse: bool=True, ensemble: {}=None,
+                 parallel: bool=False):
         """Constructor method"""
         self.f, self.f_inv, self.fderiv = _load_act_fn(f)
         self.lam        = lam       # Regularization hyperparameter
@@ -17,6 +18,7 @@ class FedHEONN_coordinator:
         self.sparse     = sparse    # Sparse hyperparameter
         self.ensemble   = ensemble  # Ensemble methods set
         self.W          = []
+        self.parallel   = parallel
         # Incremental learning matrix's
         self.M_glb      = []
         self.U_glb      = []
@@ -32,7 +34,7 @@ class FedHEONN_coordinator:
         W_out = []
 
         # For each class the results of each client are aggregated
-        for c in range(0, n_classes):
+        for c in range(n_classes):
 
             # Initialization using the first element of the list
             M = M_list[0][c]
@@ -135,7 +137,7 @@ class FedHEONN_coordinator:
         init = False
 
         # For each class the results of each client are aggregated
-        for c in range(0, nclasses):
+        for c in range(nclasses):
 
             if not M_glb or init:
                 init = True
