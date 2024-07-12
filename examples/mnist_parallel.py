@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # Ensemble
     bag = True
     # Random Patches bagging parameters
-    n_estimators = 2
+    n_estimators = 10
     p_samples = 1.0
     b_samples = False
     p_feat = 1.0

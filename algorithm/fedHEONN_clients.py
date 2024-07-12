@@ -152,12 +152,13 @@ class FedHEONN_client:
             log.info(f"\t\tSerialized bagging fitting done in: {time.perf_counter() - t_ini:.3f} s")
         else:
             t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
-            log.debug(f"\t\tDoing parallelized bagging, number of estimators: {({n_estimators})}")
-            pool = multiprocessing.Pool(processes=cpu)
+            n_processes = min(cpu, n_estimators)
+            log.debug(f"\t\tDoing parallelized bagging, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
             zip_iterable = zip(repeat(X), repeat(t), repeat(p_samples), repeat(b_samples), repeat(n_outputs),
                                self.idx_feats, repeat(self.f_inv), repeat(self.fderiv), repeat(self.sparse))
-            # Blocks until ready, ordered results
-            results = pool.starmap(FedHEONN_client.bagging_fit_static, zip_iterable)
+            with multiprocessing.Pool(processes=n_processes) as pool:
+                # Blocks until ready, ordered results
+                results = pool.starmap(FedHEONN_client.bagging_fit_static, zip_iterable)
             log.debug(f"Bagging ({n_estimators} estimators) SVD-part done in : {time.perf_counter()-t_ini:.3f} s")
             t_enc = time.perf_counter()
             for idx, (M_e, US_e) in enumerate(results):
@@ -165,11 +166,11 @@ class FedHEONN_client:
                     # Encrypt M_e's
                     M_e = [ts.ckks_vector(self.context, M) for M in M_e]
                 if idx == len(results) -1:
-                    log.debug(f"Bagging ({n_estimators} estimators) ENC-part done in : {time.perf_counter() - t_enc:.3f} s")
+                    log.debug(f"Bagging ({n_estimators} estimators) ENC-part done in : {time.perf_counter()-t_enc:.3f} s")
                 # Append to master M&US matrix's
                 self.M.append(M_e)
                 self.US.append(US_e)
-            log.info(f"\t\tParallelized ({cpu}) bagging fitting done in: {time.perf_counter()-t_ini:.3f} s")
+            log.info(f"\t\tParallelized ({n_processes}) bagging fitting done in: {time.perf_counter()-t_ini:.3f} s")
 
     def _bagging_fit(self, X, t, p_samples, b_samples, n_outputs, estimator_idx):
         M_e, US_e = [], []

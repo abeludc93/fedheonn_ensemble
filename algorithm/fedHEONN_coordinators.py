@@ -42,16 +42,17 @@ class FedHEONN_coordinator:
         n_clients = len(M_list)
 
         # Deserialize in case of encrypted and parallel configuration
+        t = time.perf_counter()
         ctx = None
         if encrypted and parallel:
             ctx = FedHEONN_coordinator.load_context(ctx_str)
             for i in range(n_clients):
                 M_list[i] = [ts.ckks_vector_from(ctx, m) for m in M_list[i]]
-
+        print(f"Time elapsed de-serializing and loading context data: {time.perf_counter() - t:.3f} s")
 
         # Optimal weights
         W_out = []
-
+        t = time.perf_counter()
         # For each class the results of each client are aggregated
         for c in range(n_classes):
 
@@ -93,6 +94,7 @@ class FedHEONN_coordinator:
                     w = U @ (np.diag(1 / (S * S + lam * (np.ones(np.size(S))))) @ (U.transpose() @ M))
 
             W_out.append(w.serialize() if encrypted and parallel else w)
+        print(f"MATMULS and INV done in: {time.perf_counter() - t:.3f} s")
 
         return W_out
 
@@ -124,6 +126,7 @@ class FedHEONN_coordinator:
 
             # Parallelized aggregation
             if self.parallel:
+                t = time.perf_counter()
                 ctx_str, ctx = None, None
                 if self.encrypted:
                     ctx_str, ctx = FedHEONN_coordinator.save_context_from(M_list[0][0][0])
@@ -136,18 +139,24 @@ class FedHEONN_coordinator:
                         for j in range(n_clients):
                             M_base[i][j] = [m.serialize() for m in M_base[i][j]]
                 t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
-                log.debug(f"\t\tDoing parallelized aggregation, number of estimators: {({n_estimators})}")
-                pool = multiprocessing.Pool(processes=cpu)
+                log.debug(f"\t\tDoing parallelized aggregation, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
+                n_processes = min(cpu, n_estimators)
                 iterable = [[M_base[k], US_base[k], self.lam, self.sparse, self.encrypted, self.parallel, ctx_str]
                             for k in range(n_estimators)]
-                # Blocks until ready, ordered results
-                results = pool.starmap(FedHEONN_coordinator._aggregate, iterable)
+                print(f"Preparing data for parallel process: {time.perf_counter()-t:.3f} s")
+                t = time.perf_counter()
+                with multiprocessing.Pool(processes=n_processes) as pool:
+                    # Blocks until ready, ordered results
+                    results = pool.starmap(FedHEONN_coordinator._aggregate, iterable)
+                print(f"Results multiprocessing: {time.perf_counter()- t:.3f}")
+                t = time.perf_counter()
                 for w in results:
                     if self.encrypted:
                         self.W.append([ts.ckks_vector_from(ctx, w_item) for w_item in w])
+                        print(f"Deserializing final results: {time.perf_counter() - t:.3f}")
                     else:
                         self.W.append(w)
-                log.info(f"\t\tParallelized ({cpu}) aggregation done in: {time.perf_counter() - t_ini:.3f} s")
+                log.info(f"\t\tParallelized ({n_processes}) aggregation done in: {time.perf_counter() - t_ini:.3f} s")
                 if self.encrypted:
                     os.remove(ctx_str)
             else:
@@ -298,7 +307,7 @@ class FedHEONN_coordinator:
 
     @staticmethod
     def load_context(ctx_str):
-        print(f"Loading context from: ({ctx_str})")
+        log.info(f"Loading context from: ({ctx_str})")
         with open(ctx_str, "rb") as f:
             loaded_context = ts.context_from(f.read())
         return loaded_context
@@ -306,7 +315,7 @@ class FedHEONN_coordinator:
     @staticmethod
     def save_context_from(tenseal_vector):
         ctx = tenseal_vector.context()
-        tmp = tempfile.NamedTemporaryFile(delete=False)
+        tmp = tempfile.NamedTemporaryFile(delete=False, prefix="FedHEONN")
         tmp_filename = tmp.name
         with open(tmp_filename, "wb") as ctx_32k:
             ctx_32k.write(ctx.serialize(save_public_key=True,
