@@ -36,23 +36,12 @@ class FedHEONN_coordinator:
         self.idx_feats  = []
 
     @staticmethod
-    def _aggregate(M_list, US_list, lam, sparse, encrypted, parallel=False, ctx_str=None):
+    def _aggregate(M_list, US_list, lam, sparse, encrypted):
         # Number of classes
         n_classes = len(M_list[0])
-        n_clients = len(M_list)
-
-        # Deserialize in case of encrypted and parallel configuration
-        t = time.perf_counter()
-        ctx = None
-        if encrypted and parallel:
-            ctx = FedHEONN_coordinator.load_context(ctx_str)
-            for i in range(n_clients):
-                M_list[i] = [ts.ckks_vector_from(ctx, m) for m in M_list[i]]
-        print(f"Time elapsed de-serializing and loading context data: {time.perf_counter() - t:.3f} s")
 
         # Optimal weights
         W_out = []
-        t = time.perf_counter()
         # For each class the results of each client are aggregated
         for c in range(n_classes):
 
@@ -93,8 +82,7 @@ class FedHEONN_coordinator:
                 else:
                     w = U @ (np.diag(1 / (S * S + lam * (np.ones(np.size(S))))) @ (U.transpose() @ M))
 
-            W_out.append(w.serialize() if encrypted and parallel else w)
-        print(f"MATMULS and INV done in: {time.perf_counter() - t:.3f} s")
+            W_out.append(w)
 
         return W_out
 
@@ -141,21 +129,22 @@ class FedHEONN_coordinator:
                 t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
                 log.debug(f"\t\tDoing parallelized aggregation, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
                 n_processes = min(cpu, n_estimators)
-                iterable = [[M_base[k], US_base[k], self.lam, self.sparse, self.encrypted, self.parallel, ctx_str]
-                            for k in range(n_estimators)]
+                M_base_groups  = self.split_list(M_base, n_processes)
+                US_base_groups = self.split_list(US_base, n_processes)
+                iterable = [[M_base_groups[k], US_base_groups[k], self.lam, self.sparse, self.encrypted, self.parallel, ctx_str]
+                            for k in range(n_processes)]
                 print(f"Preparing data for parallel process: {time.perf_counter()-t:.3f} s")
                 t = time.perf_counter()
                 with multiprocessing.Pool(processes=n_processes) as pool:
                     # Blocks until ready, ordered results
-                    results = pool.starmap(FedHEONN_coordinator._aggregate, iterable)
-                print(f"Results multiprocessing: {time.perf_counter()- t:.3f}")
-                t = time.perf_counter()
-                for w in results:
-                    if self.encrypted:
-                        self.W.append([ts.ckks_vector_from(ctx, w_item) for w_item in w])
-                        print(f"Deserializing final results: {time.perf_counter() - t:.3f}")
-                    else:
-                        self.W.append(w)
+                    results = pool.starmap(FedHEONN_coordinator._aggregate_wrapper, iterable)
+                    for w in results:
+                        if self.encrypted:
+                            for k in range(len(w)):
+                                w[k] = [ts.ckks_vector_from(ctx, w_item) for w_item in w[k]]
+                            self.W.extend(w)
+                        else:
+                            self.W.extend(w)
                 log.info(f"\t\tParallelized ({n_processes}) aggregation done in: {time.perf_counter() - t_ini:.3f} s")
                 if self.encrypted:
                     os.remove(ctx_str)
@@ -168,6 +157,29 @@ class FedHEONN_coordinator:
         else:
             self.W = FedHEONN_coordinator._aggregate(M_list=M_list, US_list=US_list, lam=self.lam,
                                                      sparse=self.sparse, encrypted=self.encrypted)
+
+    @staticmethod
+    def _aggregate_wrapper(M_list, US_list, lam, sparse, encrypted, parallel=False, ctx_str=None):
+        n_estimators = len(M_list[0])
+        # Load context in case of encrypted and parallel configuration
+        ctx = None
+        if encrypted and parallel:
+            ctx = FedHEONN_coordinator.load_context(ctx_str)
+        # Process each group
+        W = []
+        for i in range(len(M_list)):
+            # De-serialize encrypted vectors in case of enc-multiprocessing
+            if encrypted and parallel:
+                for j in range(n_estimators):
+                    M_list[i][j] = [ts.ckks_vector_from(ctx, m) for m in M_list[i][j]]
+            w = FedHEONN_coordinator._aggregate(M_list[i], US_list[i], lam, sparse, encrypted)
+            # Serialize again
+            if encrypted and parallel:
+                W.append([vector.serialize() for vector in w])
+            else:
+                W.append(w)
+
+        return W
 
     @time_func
     def aggregate_partial(self, M_list, US_list):
@@ -323,3 +335,19 @@ class FedHEONN_coordinator:
                                         save_galois_keys=True,
                                         save_relin_keys=True))
         return tmp_filename, ctx
+
+    @staticmethod
+    def split_list(input_list, num_groups):
+
+        list_len = len(input_list)
+        base_size = list_len // num_groups
+        extra_elements = list_len % num_groups
+
+        sublists = []
+        start = 0
+        for i in range(num_groups):
+            sublist_size = base_size + (1 if i < extra_elements else 0)
+            sublists.append(input_list[start:start + sublist_size])
+            start += sublist_size
+
+        return sublists

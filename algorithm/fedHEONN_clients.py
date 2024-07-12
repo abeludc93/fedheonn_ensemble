@@ -159,17 +159,17 @@ class FedHEONN_client:
             with multiprocessing.Pool(processes=n_processes) as pool:
                 # Blocks until ready, ordered results
                 results = pool.starmap(FedHEONN_client.bagging_fit_static, zip_iterable)
-            log.debug(f"Bagging ({n_estimators} estimators) SVD-part done in : {time.perf_counter()-t_ini:.3f} s")
-            t_enc = time.perf_counter()
-            for idx, (M_e, US_e) in enumerate(results):
-                if self.encrypted:
-                    # Encrypt M_e's
-                    M_e = [ts.ckks_vector(self.context, M) for M in M_e]
-                if idx == len(results) -1:
-                    log.debug(f"Bagging ({n_estimators} estimators) ENC-part done in : {time.perf_counter()-t_enc:.3f} s")
-                # Append to master M&US matrix's
-                self.M.append(M_e)
-                self.US.append(US_e)
+                log.debug(f"Bagging ({n_estimators} estimators) SVD-part done in : {time.perf_counter()-t_ini:.3f} s")
+                t_enc = time.perf_counter()
+                for idx, (M_e, US_e) in enumerate(results):
+                    if self.encrypted:
+                        # Encrypt M_e's
+                        M_e = [ts.ckks_vector(self.context, M) for M in M_e]
+                    if idx == len(results) -1:
+                        log.debug(f"Bagging ({n_estimators} estimators) ENC-part done in : {time.perf_counter()-t_enc:.3f} s")
+                    # Append to master M&US matrix's
+                    self.M.append(M_e)
+                    self.US.append(US_e)
             log.info(f"\t\tParallelized ({n_processes}) bagging fitting done in: {time.perf_counter()-t_ini:.3f} s")
 
     def _bagging_fit(self, X, t, p_samples, b_samples, n_outputs, estimator_idx):
