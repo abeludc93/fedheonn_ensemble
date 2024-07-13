@@ -18,6 +18,7 @@ from auxiliary.decorators import time_func
 from auxiliary.logger import logger as log
 
 class FedHEONN_coordinator:
+
     def __init__(self, f: str='logs', lam: float=0, encrypted: bool=True, sparse: bool=True, ensemble: {}=None,
                  parallel: bool=False):
         """Constructor method"""
@@ -207,14 +208,21 @@ class FedHEONN_coordinator:
                 n_processes = min(cpu, n_estimators)
 
                 if self.encrypted:
-                    iterable_svd, iterable_M = [], []
+                    iterable_svd = []
                     for i in range(n_estimators):
-                        iterable_svd.append([[US[i] for US in US_list], self.U_glb[i], self.S_glb[i]])
                         M_base_lst = [M[i] for M in M_list]
-                        FedHEONN_coordinator._aggregate_partial_M(M_list=M_base_lst, M_glb=self.M_glb[i])
+                        FedHEONN_coordinator._aggregate_partial(M_list=M_base_lst, US_list=None,
+                                                                M_glb=self.M_glb[i], U_glb=None, S_glb=None,
+                                                                parallel_option='m')
+
+                        iterable_svd.append([None, [US[i] for US in US_list], None, self.U_glb[i], self.S_glb[i], 'svd'])
+
                     with multiprocessing.Pool(processes=n_processes) as pool:
                         # Blocks until ready, ordered results
-                        pool.starmap(FedHEONN_coordinator._aggregate_partial_wrapper, iterable_svd)
+                        tuple_results = pool.starmap(FedHEONN_coordinator._aggregate_partial, iterable_svd)
+                    for i in range(n_estimators):
+                        _, U, S = tuple_results[i]
+                        self.U_glb[i], self.S_glb[i] = U, S
                     log.info(f"\t\tParallelized ({n_processes}) partial aggregation done in: {time.perf_counter()-t_ini:.3f} s")
                 else:
                     iterable = []
@@ -224,59 +232,78 @@ class FedHEONN_coordinator:
                         iterable.append([M_base_lst, US_base_lst, self.M_glb[i], self.U_glb[i], self.S_glb[i]])
                     with multiprocessing.Pool(processes=n_processes) as pool:
                         # Blocks until ready, ordered results
-                        pool.starmap(FedHEONN_coordinator._aggregate_partial, iterable)
+                        tuple_results = pool.starmap(FedHEONN_coordinator._aggregate_partial, iterable)
+                    for i in range(n_estimators):
+                        M, U, S = tuple_results[i]
+                        self.M_glb[i], self.U_glb[i], self.S_glb[i] = M, U, S
+
                     log.info(f"\t\tParallelized ({n_processes}) partial aggregation done in: {time.perf_counter()-t_ini:.3f} s")
         else:
             FedHEONN_coordinator._aggregate_partial(M_list=M_list, US_list=US_list,
                                                     M_glb=self.M_glb, U_glb=self.U_glb, S_glb=self.S_glb)
 
     @staticmethod
-    def _aggregate_partial(M_list, US_list, M_glb, U_glb, S_glb):
+    def _aggregate_partial(M_list, US_list, M_glb, U_glb, S_glb, parallel_option='m_svd'):
+        # Parallel_option == 'm_svd' | 'svd ' | 'm'
+
         # Aggregates partial M&US lists to the model
 
         # Number of classes
-        nclasses = len(M_list[0])
+        n_classes = len(M_list[0]) if 'm' in parallel_option else len(US_list[0])
 
         # Flag to represent an initial or incremental aggregation (no global M|U|S beforehand)
         init = False
 
         # For each class the results of each client are aggregated
-        for c in range(nclasses):
+        for c in range(n_classes):
 
-            if not M_glb or init:
+            if not (M_glb if 'm' in parallel_option else U_glb) or init:
                 init = True
                 # Initialization using the first element of the list
-                M  = M_list[0][c]
-                US = US_list[0][c]
-                M_rest  = [item[c] for item in M_list[1:]]
-                US_rest = [item[c] for item in US_list[1:]]
+                if 'svd' in parallel_option:
+                    US = US_list[0][c]
+                    US_rest = [item[c] for item in US_list[1:]]
+                if 'm' in parallel_option:
+                    M = M_list[0][c]
+                    M_rest = [item[c] for item in M_list[1:]]
             else:
-                assert nclasses == len(M_glb)
-                M = M_glb[c]
-                US = U_glb[c] @ np.diag(S_glb[c])
-                M_rest  = [item[c] for item in M_list[:]]
-                US_rest = [item[c] for item in US_list[:]]
+                assert n_classes == len(M_glb) if 'm' in parallel_option else len(U_glb)
+                if 'svd' in parallel_option:
+                    US = U_glb[c] @ np.diag(S_glb[c])
+                    US_rest = [item[c] for item in US_list[:]]
+                if 'm' in parallel_option:
+                    M = M_glb[c]
+                    M_rest = [item[c] for item in M_list[:]]
 
-
-            if not (M_rest and US_rest):
+            if 'svd' in parallel_option and not US_rest:
                 # Only one client
                 U, S, _ = sp.linalg.svd(US, full_matrices=False)
             else:
                 # Aggregation of M and US from the second client to the last
-                for M_k, US_k in zip(M_rest, US_rest):
-                    M = M + M_k
-                    U, S, _ = sp.linalg.svd(np.concatenate((US_k, US),axis=1), full_matrices=False)
-                    US = U @ np.diag(S)
+                if 'svd' in parallel_option:
+                    for US_k in US_rest:
+                        U, S, _ = sp.linalg.svd(np.concatenate((US_k, US),axis=1), full_matrices=False)
+                        US = U @ np.diag(S)
+                if 'm' in parallel_option:
+                    for M_k in M_rest:
+                        M = M + M_k
 
             # Save contents
             if init:
-                M_glb.append(M)
-                U_glb.append(U)
-                S_glb.append(S)
+                if 'm' in parallel_option:
+                    M_glb.append(M)
+                if 'svd' in parallel_option:
+                    U_glb.append(U)
+                    S_glb.append(S)
             else:
-                M_glb[c] = M
-                U_glb[c] = U
-                S_glb[c] = S
+                if 'm' in parallel_option:
+                    M_glb[c] = M
+                if 'svd' in parallel_option:
+                    U_glb[c] = U
+                    S_glb[c] = S
+
+        return M_glb, U_glb, S_glb
+
 
     @time_func
     def calculate_weights(self):
