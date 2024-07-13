@@ -192,11 +192,40 @@ class FedHEONN_coordinator:
             self.M_glb = [[] for i in range(n_estimators)] if not self.M_glb else self.M_glb
             self.U_glb = [[] for i in range(n_estimators)] if not self.U_glb else self.U_glb
             self.S_glb = [[] for i in range(n_estimators)] if not self.S_glb else self.S_glb
-            for i in range(n_estimators):
-                M_base_lst = [M[i] for M in M_list]
-                US_base_lst = [US[i] for US in US_list]
-                FedHEONN_coordinator._aggregate_partial(M_list=M_base_lst, US_list=US_base_lst,
-                                                        M_glb=self.M_glb[i], U_glb=self.U_glb[i], S_glb=self.S_glb[i])
+
+            if not self.parallel:
+
+                for i in range(n_estimators):
+                    M_base_lst = [M[i] for M in M_list]
+                    US_base_lst = [US[i] for US in US_list]
+                    FedHEONN_coordinator._aggregate_partial(M_list=M_base_lst, US_list=US_base_lst,
+                                                            M_glb=self.M_glb[i], U_glb=self.U_glb[i], S_glb=self.S_glb[i])
+            else:
+                t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
+                log.debug(f"\t\tDoing parallelized partial aggregation, number of estimators: {({n_estimators})}, "
+                          f"cpu-cores: {cpu}")
+                n_processes = min(cpu, n_estimators)
+
+                if self.encrypted:
+                    iterable_svd, iterable_M = [], []
+                    for i in range(n_estimators):
+                        iterable_svd.append([[US[i] for US in US_list], self.U_glb[i], self.S_glb[i]])
+                        M_base_lst = [M[i] for M in M_list]
+                        FedHEONN_coordinator._aggregate_partial_M(M_list=M_base_lst, M_glb=self.M_glb[i])
+                    with multiprocessing.Pool(processes=n_processes) as pool:
+                        # Blocks until ready, ordered results
+                        pool.starmap(FedHEONN_coordinator._aggregate_partial_wrapper, iterable_svd)
+                    log.info(f"\t\tParallelized ({n_processes}) partial aggregation done in: {time.perf_counter()-t_ini:.3f} s")
+                else:
+                    iterable = []
+                    for i in range(n_estimators):
+                        M_base_lst = [M[i] for M in M_list]
+                        US_base_lst = [US[i] for US in US_list]
+                        iterable.append([M_base_lst, US_base_lst, self.M_glb[i], self.U_glb[i], self.S_glb[i]])
+                    with multiprocessing.Pool(processes=n_processes) as pool:
+                        # Blocks until ready, ordered results
+                        pool.starmap(FedHEONN_coordinator._aggregate_partial, iterable)
+                    log.info(f"\t\tParallelized ({n_processes}) partial aggregation done in: {time.perf_counter()-t_ini:.3f} s")
         else:
             FedHEONN_coordinator._aggregate_partial(M_list=M_list, US_list=US_list,
                                                     M_glb=self.M_glb, U_glb=self.U_glb, S_glb=self.S_glb)
