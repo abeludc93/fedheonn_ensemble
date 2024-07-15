@@ -522,7 +522,7 @@ class FedHEONN_coordinator:
 
     @staticmethod
     def delete_context(ctx_str):
-        if not ctx_str and os.path.isfile(ctx_str):
+        if ctx_str and os.path.isfile(ctx_str):
             log.info(f"\t\tDeleting temporary file: {ctx_str}")
             os.remove(ctx_str)
         else:
