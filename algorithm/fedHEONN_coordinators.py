@@ -160,9 +160,9 @@ class FedHEONN_coordinator:
                 log.info(f"\t\tParallelized ({n_processes}) aggregation done in: {time.perf_counter() - t_ini:.3f} s")
 
                 # Delete temporary file containing the public tenSEAL context
-                if self.encrypted and ctx_str is not None:
-                    log.info(f"\t\t Deleting temporary file: {ctx_str}")
-                    os.remove(ctx_str)
+                if self.encrypted:
+                    FedHEONN_coordinator.delete_context(ctx_str)
+
             else:
                 # Aggregating in series (with bagging)
                 for i in range(n_estimators):
@@ -403,8 +403,7 @@ class FedHEONN_coordinator:
 
                 # Delete temporary file containing the public tenSEAL context
                 if self.encrypted:
-                    log.info(f"\t\t Deleting temporary file: {ctx_str}")
-                    os.remove(ctx_str)
+                    FedHEONN_coordinator.delete_context(ctx_str)
 
             # Calculate weights in series (with bagging)
             else:
@@ -520,6 +519,14 @@ class FedHEONN_coordinator:
                                         save_relin_keys=True))
         log.info(f"Saved tenSEAL context in: ({tmp_filename}) - {os.path.getsize(tmp_filename) / (1024 * 1024):.2f} MB")
         return tmp_filename, ctx
+
+    @staticmethod
+    def delete_context(ctx_str):
+        if not ctx_str and os.path.isfile(ctx_str):
+            log.info(f"\t\tDeleting temporary file: {ctx_str}")
+            os.remove(ctx_str)
+        else:
+            log.warn(f"\t\tCouldn't delete temporary file (empty or not found): {ctx_str}")
 
     @staticmethod
     def split_list(input_list, num_groups):
