@@ -35,6 +35,9 @@ class FedHEONN_coordinator:
         # Auxiliary list for attribute indexes
         self.idx_feats  = []
 
+    def __del__(self):
+        print(f"DESTRUCTOR")
+
     @staticmethod
     def _aggregate(M_list, US_list, lam, sparse, encrypted):
         # Number of classes
