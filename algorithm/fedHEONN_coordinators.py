@@ -108,37 +108,49 @@ class FedHEONN_coordinator:
 
         # Check for ensemble methods of aggregation
         if self.ensemble and "bagging" in self.ensemble:
+
             # Aggregate each estimators output
             n_estimators = len(US_list[0])
             n_clients = len(US_list)
 
-            # Parallelized aggregation
+            # Aggregation in parallel
             if self.parallel:
-                t = time.perf_counter()
+                # Get number of physical cores and start timer
+                t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
+                # Number of pool processes
+                n_processes = min(cpu, n_estimators)
+                log.debug(f"\t\tDoing parallelized aggregation, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
+
+                # Save tenSEAL context to temp file for later use in multiprocessing
                 ctx_str, ctx = None, None
                 if self.encrypted:
                     ctx_str, ctx = FedHEONN_coordinator.save_context_from(M_list[0][0][0])
+
+                # Prepare data for multiprocessing:
+                # Arrange list of estimators M&US[i] matrix's
                 M_base = []
                 US_base = []
                 for i in range(n_estimators):
                     M_base.append([M[i] for M in M_list])
                     US_base.append([US[i] for US in US_list])
+                    # Serialize tenSEAL CKKS vectors for later use in multiprocessing
                     if self.encrypted:
                         for j in range(n_clients):
                             M_base[i][j] = [m.serialize() for m in M_base[i][j]]
-                t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
-                log.debug(f"\t\tDoing parallelized aggregation, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
-                n_processes = min(cpu, n_estimators)
+                # Split data in iterable groups - one for each process
                 M_base_groups  = self.split_list(M_base, n_processes)
                 US_base_groups = self.split_list(US_base, n_processes)
                 iterable = [[M_base_groups[k], US_base_groups[k], self.lam, self.sparse, self.encrypted, self.parallel, ctx_str]
                             for k in range(n_processes)]
-                print(f"Preparing data for parallel process: {time.perf_counter()-t:.3f} s")
-                t = time.perf_counter()
+                log.info(f"\t\tPreparing data for parallel process: {time.perf_counter()-t_ini:.3f} s")
+
+                # Multiprocessing POOL
+                t_ini = time.perf_counter()
                 with multiprocessing.Pool(processes=n_processes) as pool:
                     # Blocks until ready, ordered results
                     results = pool.starmap(FedHEONN_coordinator._aggregate_wrapper, iterable)
                     for w in results:
+                        # If encrypted, we need to deserialize returned data
                         if self.encrypted:
                             for k in range(len(w)):
                                 w[k] = [ts.ckks_vector_from(ctx, w_item) for w_item in w[k]]
@@ -146,104 +158,135 @@ class FedHEONN_coordinator:
                         else:
                             self.W.extend(w)
                 log.info(f"\t\tParallelized ({n_processes}) aggregation done in: {time.perf_counter() - t_ini:.3f} s")
-                if self.encrypted:
+
+                # Delete temporary file containing the public tenSEAL context
+                if self.encrypted and ctx_str is not None:
+                    log.info(f"\t\t Deleting temporary file: {ctx_str}")
                     os.remove(ctx_str)
             else:
+                # Aggregating in series (with bagging)
                 for i in range(n_estimators):
                     M_base_lst = [M[i] for M in M_list]
                     US_base_lst = [US[i] for US in US_list]
                     self.W.append(FedHEONN_coordinator._aggregate(M_list=M_base_lst, US_list=US_base_lst, lam=self.lam,
                                                                   sparse=self.sparse, encrypted=self.encrypted))
         else:
+            # Aggregating in series (without bagging)
             self.W = FedHEONN_coordinator._aggregate(M_list=M_list, US_list=US_list, lam=self.lam,
                                                      sparse=self.sparse, encrypted=self.encrypted)
 
     @staticmethod
     def _aggregate_wrapper(M_list, US_list, lam, sparse, encrypted, parallel=False, ctx_str=None):
-        n_estimators = len(M_list[0])
+        # Number of estimators and matrix's per group
+        n_estimators, n_groups = len(M_list[0]), len(M_list)
+
         # Load context in case of encrypted and parallel configuration
         ctx = None
         if encrypted and parallel:
             ctx = FedHEONN_coordinator.load_context(ctx_str)
-        # Process each group
+
+        # Process each group of M_list&US_list data
         W = []
-        for i in range(len(M_list)):
-            # De-serialize encrypted vectors in case of enc-multiprocessing
+        for i in range(n_groups):
+            # De-serialize tenSEAL CKKS encrypted vectors for multiprocessing purposes
             if encrypted and parallel:
                 for j in range(n_estimators):
                     M_list[i][j] = [ts.ckks_vector_from(ctx, m) for m in M_list[i][j]]
+
+            # Aggregate and append returned optimal weights
             w = FedHEONN_coordinator._aggregate(M_list[i], US_list[i], lam, sparse, encrypted)
-            # Serialize again
             if encrypted and parallel:
+                # Serialize returned data (CKKS vectors) from multiprocessors
                 W.append([vector.serialize() for vector in w])
             else:
+                # Append plain results
                 W.append(w)
 
         return W
 
     @time_func
     def aggregate_partial(self, M_list, US_list):
-        # Aggregates partial M&US lists
+        # Aggregates partial M&US lists of matrix's
 
         # Check for ensemble methods of aggregation
         if self.ensemble and "bagging" in self.ensemble:
+
             # Aggregate each estimators output
             n_estimators = len(US_list[0])
             self.M_glb = [[] for i in range(n_estimators)] if not self.M_glb else self.M_glb
             self.U_glb = [[] for i in range(n_estimators)] if not self.U_glb else self.U_glb
             self.S_glb = [[] for i in range(n_estimators)] if not self.S_glb else self.S_glb
 
+            # Partial aggregation in series (with bagging)
             if not self.parallel:
 
                 for i in range(n_estimators):
                     M_base_lst = [M[i] for M in M_list]
                     US_base_lst = [US[i] for US in US_list]
                     FedHEONN_coordinator._aggregate_partial(M_list=M_base_lst, US_list=US_base_lst,
-                                                            M_glb=self.M_glb[i], U_glb=self.U_glb[i], S_glb=self.S_glb[i])
+                                                            M_glb=self.M_glb[i], U_glb=self.U_glb[i],
+                                                            S_glb=self.S_glb[i])
+            # Partial aggregation in parallel (with bagging)
             else:
+                # Get number of physical cores and start timer
                 t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
-                log.debug(f"\t\tDoing parallelized partial aggregation, number of estimators: {({n_estimators})}, "
-                          f"cpu-cores: {cpu}")
+                # Number of pool processes
                 n_processes = min(cpu, n_estimators)
+                log.debug(f"\t\tDoing parallelized partial aggregation, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
 
+                # If M is encrypted data, parallelize only the partial SVD aggregation
                 if self.encrypted:
+
+                    # Prepare data for multiprocessing (iterable_svd) and aggregate M data IN SERIES
                     iterable_svd = []
                     for i in range(n_estimators):
+                        # Collect M data and aggregate (parallel_option is 'm')
                         M_base_lst = [M[i] for M in M_list]
                         FedHEONN_coordinator._aggregate_partial(M_list=M_base_lst, US_list=None,
                                                                 M_glb=self.M_glb[i], U_glb=None, S_glb=None,
                                                                 parallel_option='m')
-
+                        # Prepare multiprocess iterable with U&S data (parallel_option is 'svd')
                         iterable_svd.append([None, [US[i] for US in US_list], None, self.U_glb[i], self.S_glb[i], 'svd'])
 
+                    # Multiprocessing POOL
                     with multiprocessing.Pool(processes=n_processes) as pool:
                         # Blocks until ready, ordered results
                         tuple_results = pool.starmap(FedHEONN_coordinator._aggregate_partial, iterable_svd)
-                    for i in range(n_estimators):
-                        _, U, S = tuple_results[i]
-                        self.U_glb[i], self.S_glb[i] = U, S
-                    log.info(f"\t\tParallelized ({n_processes}) partial aggregation done in: {time.perf_counter()-t_ini:.3f} s")
+                        # Place returned results in instance's attributes accordingly
+                        for i in range(n_estimators):
+                            _, U, S = tuple_results[i]
+                            self.U_glb[i], self.S_glb[i] = U, S
+
+                # If M is plain data, parallelize the whole process
                 else:
+                    # Prepare data for multiprocessing (iterable)
                     iterable = []
                     for i in range(n_estimators):
                         M_base_lst = [M[i] for M in M_list]
                         US_base_lst = [US[i] for US in US_list]
                         iterable.append([M_base_lst, US_base_lst, self.M_glb[i], self.U_glb[i], self.S_glb[i]])
+
+                    # Multiprocessing POOL
                     with multiprocessing.Pool(processes=n_processes) as pool:
                         # Blocks until ready, ordered results
                         tuple_results = pool.starmap(FedHEONN_coordinator._aggregate_partial, iterable)
-                    for i in range(n_estimators):
-                        M, U, S = tuple_results[i]
-                        self.M_glb[i], self.U_glb[i], self.S_glb[i] = M, U, S
+                        # Place returned results in instance's attributes accordingly
+                        for i in range(n_estimators):
+                            M, U, S = tuple_results[i]
+                            self.M_glb[i], self.U_glb[i], self.S_glb[i] = M, U, S
 
-                    log.info(f"\t\tParallelized ({n_processes}) partial aggregation done in: {time.perf_counter()-t_ini:.3f} s")
+                log.info(f"\t\tParallelized ({n_processes}) partial aggregation done in: {time.perf_counter()-t_ini:.3f} s")
         else:
+            # Partial aggregation in series (without bagging)
             FedHEONN_coordinator._aggregate_partial(M_list=M_list, US_list=US_list,
                                                     M_glb=self.M_glb, U_glb=self.U_glb, S_glb=self.S_glb)
 
     @staticmethod
     def _aggregate_partial(M_list, US_list, M_glb, U_glb, S_glb, parallel_option='m_svd'):
         # Parallel_option == 'm_svd' | 'svd ' | 'm'
+        # 'm_svd':  aggregates all information, that is, sums M data and process US
+        # 'm':      aggregates only M data
+        # 'svd':    aggregates only US data
 
         # Aggregates partial M&US lists to the model
 
@@ -301,6 +344,7 @@ class FedHEONN_coordinator:
                     U_glb[c] = U
                     S_glb[c] = S
 
+        # Return data (only for multiprocessing purposes, because pool processes can't modify the original matrix's)
         return M_glb, U_glb, S_glb
 
 
