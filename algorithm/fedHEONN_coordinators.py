@@ -6,7 +6,6 @@ import time
 import multiprocessing
 import tempfile
 import os
-from itertools import repeat
 # Third-party libraries
 import numpy as np
 import scipy as sp
@@ -311,14 +310,76 @@ class FedHEONN_coordinator:
         self.W = []
         # Check for ensemble methods
         if self.ensemble and "bagging" in self.ensemble:
+            assert self.M_glb; assert self.U_glb; assert self.S_glb
+
             # Calculate optimal weights for each estimator
             n_estimators = len(self.M_glb)
-            for i in range(n_estimators):
-                self.W.append(self._calculate_weights(M_glb=self.M_glb[i], U_glb=self.U_glb[i], S_glb=self.S_glb[i]))
+            if self.parallel:
+                t = time.perf_counter()
+                ctx_str, ctx = None, None
+                if self.encrypted: # TODO: check for previously saved context
+                    ctx_str, ctx = FedHEONN_coordinator.save_context_from(self.M_glb[0][0])
+                    for i in range(n_estimators):
+                        self.M_glb[i] = [m.serialize() for m in self.M_glb[i]]
+                t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
+                log.debug(f"\t\tDoing parallelized calculate_weights, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
+                n_processes = min(cpu, n_estimators)
+                M_groups = self.split_list(self.M_glb, n_processes)
+                U_groups = self.split_list(self.U_glb, n_processes)
+                S_groups = self.split_list(self.S_glb, n_processes)
+                iterable = [[M_groups[k], U_groups[k], S_groups[k], self.lam, self.sparse, self.encrypted, self.parallel, ctx_str]
+                            for k in range(n_processes)]
+                print(f"Preparing data for parallel process: {time.perf_counter() - t:.3f} s")
+                t = time.perf_counter()
+                with multiprocessing.Pool(processes=n_processes) as pool:
+                    # Blocks until ready, ordered results
+                    results = pool.starmap(FedHEONN_coordinator._calculate_weights_wrapper, iterable)
+                    for w in results:
+                        if self.encrypted:
+                            for k in range(len(w)):
+                                w[k] = [ts.ckks_vector_from(ctx, w_item) for w_item in w[k]]
+                            self.W.extend(w)
+                        else:
+                            self.W.extend(w)
+                log.info(f"\t\tParallelized ({n_processes}) calculate_weights done in: {time.perf_counter() - t_ini:.3f} s")
+                if self.encrypted:
+                    os.remove(ctx_str)
+            else:
+                for i in range(n_estimators):
+                    self.W.append(self._calculate_weights(M_glb=self.M_glb[i], U_glb=self.U_glb[i], S_glb=self.S_glb[i],
+                                                          sparse=self.sparse, lam=self.lam, encrypted=self.encrypted))
         else:
-            self.W = self._calculate_weights(M_glb=self.M_glb, U_glb=self.U_glb, S_glb=self.S_glb)
+            assert self.M_glb; assert self.U_glb; assert self.S_glb
 
-    def _calculate_weights(self, M_glb, U_glb, S_glb) -> []:
+            self.W = self._calculate_weights(M_glb=self.M_glb, U_glb=self.U_glb, S_glb=self.S_glb,
+                                             sparse=self.sparse, lam=self.lam, encrypted=self.encrypted)
+
+    @staticmethod
+    def _calculate_weights_wrapper(M_list, U_list, S_list, lam, sparse, encrypted, parallel=False, ctx_str=None):
+        # Number of estimators
+        n_estimators, n_groups = len(M_list[0]), len(M_list)
+        # Load context in case of encrypted and parallel configuration
+        ctx = None
+        if encrypted and parallel:
+            ctx = FedHEONN_coordinator.load_context(ctx_str)
+        # Process each group
+        W = []
+        for i in range(n_groups):
+            # De-serialize encrypted vectors in case of encrypted-multiprocessing
+            if encrypted and parallel:
+                M_list[i] = [ts.ckks_vector_from(ctx, m) for m in M_list[i]]
+            w = FedHEONN_coordinator._calculate_weights(M_list[i], U_list[i], S_list[i], lam, sparse, encrypted)
+            # Serialize again
+            if encrypted and parallel:
+                W.append([vector.serialize() for vector in w])
+            else:
+                W.append(w)
+
+        return W
+
+
+    @staticmethod
+    def _calculate_weights(M_glb, U_glb, S_glb, lam, sparse, encrypted) -> []:
         """
         Method to calculate the optimal weights of the ONN model for the current M & US matrix's.
         """
@@ -336,13 +397,13 @@ class FedHEONN_coordinator:
                 U = U_glb[c]
                 S = S_glb[c]
 
-                if self.sparse:
+                if sparse:
                     I_ones = np.ones(np.size(S))
                     I_sparse = sp.sparse.spdiags(I_ones, 0, I_ones.size, I_ones.size, format = "csr")
                     S_sparse = sp.sparse.spdiags(S, 0, S.size, S.size, format = "csr")
-                    aux2 = S_sparse * S_sparse + self.lam * I_sparse
+                    aux2 = S_sparse * S_sparse + lam * I_sparse
                     # Optimal weights: the order of the matrix and vector multiplications have been rearranged to optimize the speed
-                    if self.encrypted:
+                    if encrypted:
                         aux2 = aux2.toarray()
                         w = (M.matmul(U)).matmul((U @ np.linalg.pinv(aux2)).T)
                     else:
@@ -350,10 +411,10 @@ class FedHEONN_coordinator:
                         w = U @ (np.linalg.pinv(aux2) @ (U.transpose() @ M))
                 else:
                     # Optimal weights: the order of the matrix and vector multiplications have been rearranged to optimize the speed
-                    if self.encrypted:
-                        w = (M.matmul(U)).matmul((U @ (np.diag(1/(S*S+self.lam*(np.ones(np.size(S))))))).T)
+                    if encrypted:
+                        w = (M.matmul(U)).matmul((U @ (np.diag(1/(S*S+lam*(np.ones(np.size(S))))))).T)
                     else:
-                        w = U @ (np.diag(1/(S*S+self.lam*(np.ones(np.size(S))))) @ (U.transpose() @ M))
+                        w = U @ (np.diag(1/(S*S+lam*(np.ones(np.size(S))))) @ (U.transpose() @ M))
 
                 # Append optimal weights
                 W_out.append(w)
