@@ -33,7 +33,7 @@ def get_prediction(ex_client, coord, testX, testT, regression=True):
     test_y = ex_client.predict(testX)
     if regression:
         # Global MSE for the 3 outputs
-        metric = 100 * mean_squared_error(testT, test_y) # TODO: no es un porcentaje
+        metric = 100 * mean_squared_error(testT, test_y) # TODO: not a percentage
     else:
         # Global precision for all outputs
         metric = 100 * accuracy_score(testT, test_y)
@@ -84,7 +84,7 @@ def get_params_group(group):
 # returning the mean squared error and optimal weights on the test data
 def incremental_fit(list_clients, coord, ngroups, testX, testT, regression=True, random_groups=False):
     # Flag to make predictions after incrementally processing each group
-    debug = False
+    debug = True
     # Shuffle client list
     shuffle(list_clients)
     # Group clients

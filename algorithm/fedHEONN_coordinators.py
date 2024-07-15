@@ -378,15 +378,20 @@ class FedHEONN_coordinator:
                 log.debug(f"\t\tDoing parallelized calculate_weights, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
 
                 # Save tenSEAL context to temp file and serialize CKKS vectors for later use in multiprocessing
-                ctx = None
-                if self.encrypted and self.ctx_str is None:
-                    self.ctx_str, ctx = FedHEONN_coordinator.save_context_from(self.M_glb[0][0])
+                ctx, M_glb_serialized = None, []
+                if self.encrypted:
+                    if self.ctx_str is None:
+                        # Save and retrieve context
+                        self.ctx_str, ctx = FedHEONN_coordinator.save_context_from(self.M_glb[0][0])
+                    else:
+                        # Already saved, no need to load context from file, just retrieve it from sample CKKS vector
+                        ctx = self.M_glb[0][0].context()
                     for i in range(n_estimators):
-                        self.M_glb[i] = [m.serialize() for m in self.M_glb[i]]
+                        M_glb_serialized.append([m.serialize() for m in self.M_glb[i]])
 
                 # Prepare data for multiprocessing:
                 # Split data in iterable groups - one for each process
-                M_groups = self.split_list(self.M_glb, n_processes)
+                M_groups = self.split_list(M_glb_serialized if self.encrypted else self.M_glb, n_processes)
                 U_groups = self.split_list(self.U_glb, n_processes)
                 S_groups = self.split_list(self.S_glb, n_processes)
                 iterable = [[M_groups[k], U_groups[k], S_groups[k], self.lam, self.sparse, self.encrypted, self.parallel, self.ctx_str]
