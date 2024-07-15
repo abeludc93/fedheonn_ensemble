@@ -196,7 +196,7 @@ class FedHEONN_coordinator:
             # Aggregate and append returned optimal weights
             w = FedHEONN_coordinator._aggregate(M_list[i], US_list[i], lam, sparse, encrypted)
             if encrypted and parallel:
-                # Serialize returned data (CKKS vectors) from multiprocessors
+                # Serialize returned data (CKKS vectors) from pool processes
                 W.append([vector.serialize() for vector in w])
             else:
                 # Append plain results
@@ -350,35 +350,49 @@ class FedHEONN_coordinator:
 
     @time_func
     def calculate_weights(self):
-        # Calculate weights
+        # Calculate weights for the current coordinators M_glb, U_glb and S_glb data
+
+        # Clean previous weights and assert there is data
+        assert self.M_glb; assert self.U_glb; assert self.S_glb
         self.W = []
-        # Check for ensemble methods
+
+        # Check for ensemble methods of aggregation
         if self.ensemble and "bagging" in self.ensemble:
-            assert self.M_glb; assert self.U_glb; assert self.S_glb
 
             # Calculate optimal weights for each estimator
             n_estimators = len(self.M_glb)
+
+            # Calculate weights in parallel (with bagging)
             if self.parallel:
-                t = time.perf_counter()
+                # Get number of physical cores and start timer
+                t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
+                # Number of pool processes
+                n_processes = min(cpu, n_estimators)
+                log.debug(f"\t\tDoing parallelized calculate_weights, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
+
+                # Save tenSEAL context to temp file and serialize CKKS vectors for later use in multiprocessing
                 ctx_str, ctx = None, None
                 if self.encrypted: # TODO: check for previously saved context
                     ctx_str, ctx = FedHEONN_coordinator.save_context_from(self.M_glb[0][0])
                     for i in range(n_estimators):
                         self.M_glb[i] = [m.serialize() for m in self.M_glb[i]]
-                t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
-                log.debug(f"\t\tDoing parallelized calculate_weights, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
-                n_processes = min(cpu, n_estimators)
+
+                # Prepare data for multiprocessing:
+                # Split data in iterable groups - one for each process
                 M_groups = self.split_list(self.M_glb, n_processes)
                 U_groups = self.split_list(self.U_glb, n_processes)
                 S_groups = self.split_list(self.S_glb, n_processes)
                 iterable = [[M_groups[k], U_groups[k], S_groups[k], self.lam, self.sparse, self.encrypted, self.parallel, ctx_str]
                             for k in range(n_processes)]
-                print(f"Preparing data for parallel process: {time.perf_counter() - t:.3f} s")
-                t = time.perf_counter()
+                log.info(f"\t\tPreparing data for parallel process: {time.perf_counter() - t_ini:.3f} s")
+
+                # Multiprocessing POOL
+                t_ini = time.perf_counter()
                 with multiprocessing.Pool(processes=n_processes) as pool:
                     # Blocks until ready, ordered results
                     results = pool.starmap(FedHEONN_coordinator._calculate_weights_wrapper, iterable)
                     for w in results:
+                        # If encrypted, we need to deserialize returned data
                         if self.encrypted:
                             for k in range(len(w)):
                                 w[k] = [ts.ckks_vector_from(ctx, w_item) for w_item in w[k]]
@@ -386,37 +400,46 @@ class FedHEONN_coordinator:
                         else:
                             self.W.extend(w)
                 log.info(f"\t\tParallelized ({n_processes}) calculate_weights done in: {time.perf_counter() - t_ini:.3f} s")
+
+                # Delete temporary file containing the public tenSEAL context
                 if self.encrypted:
+                    log.info(f"\t\t Deleting temporary file: {ctx_str}")
                     os.remove(ctx_str)
+
+            # Calculate weights in series (with bagging)
             else:
                 for i in range(n_estimators):
                     self.W.append(self._calculate_weights(M_glb=self.M_glb[i], U_glb=self.U_glb[i], S_glb=self.S_glb[i],
                                                           sparse=self.sparse, lam=self.lam, encrypted=self.encrypted))
         else:
-            assert self.M_glb; assert self.U_glb; assert self.S_glb
-
+            # Calculate weights in series (without bagging)
             self.W = self._calculate_weights(M_glb=self.M_glb, U_glb=self.U_glb, S_glb=self.S_glb,
                                              sparse=self.sparse, lam=self.lam, encrypted=self.encrypted)
 
     @staticmethod
     def _calculate_weights_wrapper(M_list, U_list, S_list, lam, sparse, encrypted, parallel=False, ctx_str=None):
-        # Number of estimators
+        # Number of estimators and matrix's per group
         n_estimators, n_groups = len(M_list[0]), len(M_list)
+
         # Load context in case of encrypted and parallel configuration
         ctx = None
         if encrypted and parallel:
             ctx = FedHEONN_coordinator.load_context(ctx_str)
-        # Process each group
+
+        # Process each group of M&U&S list data
         W = []
         for i in range(n_groups):
-            # De-serialize encrypted vectors in case of encrypted-multiprocessing
+            # De-serialize encrypted CKKS vectors in case of encrypted-multiprocessing
             if encrypted and parallel:
                 M_list[i] = [ts.ckks_vector_from(ctx, m) for m in M_list[i]]
+
+            # Aggregate and append returned optimal weights
             w = FedHEONN_coordinator._calculate_weights(M_list[i], U_list[i], S_list[i], lam, sparse, encrypted)
-            # Serialize again
             if encrypted and parallel:
+                # Serialize returned data (CKKS vectors) from pool processes
                 W.append([vector.serialize() for vector in w])
             else:
+                # Append plain results
                 W.append(w)
 
         return W
@@ -495,11 +518,12 @@ class FedHEONN_coordinator:
                                         save_secret_key=False,
                                         save_galois_keys=True,
                                         save_relin_keys=True))
+        log.info(f"Saved tenSEAL context in: ({tmp_filename}) - {os.path.getsize(tmp_filename) / (1024 * 1024):.2f} MB")
         return tmp_filename, ctx
 
     @staticmethod
     def split_list(input_list, num_groups):
-
+        # Split list into num_groups of equal or similar size
         list_len = len(input_list)
         base_size = list_len // num_groups
         extra_elements = list_len % num_groups
