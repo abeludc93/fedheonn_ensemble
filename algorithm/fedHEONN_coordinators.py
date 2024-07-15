@@ -34,9 +34,12 @@ class FedHEONN_coordinator:
         self.S_glb      = []
         # Auxiliary list for attribute indexes
         self.idx_feats  = []
+        # Auxiliary variable
+        self.ctx_str    = None
 
     def __del__(self):
-        print(f"DESTRUCTOR")
+        if getattr(self, 'ctx_str', None):
+            FedHEONN_coordinator.delete_context(self.ctx_str)
 
     @staticmethod
     def _aggregate(M_list, US_list, lam, sparse, encrypted):
@@ -125,9 +128,9 @@ class FedHEONN_coordinator:
                 log.debug(f"\t\tDoing parallelized aggregation, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
 
                 # Save tenSEAL context to temp file for later use in multiprocessing
-                ctx_str, ctx = None, None
+                ctx = None
                 if self.encrypted:
-                    ctx_str, ctx = FedHEONN_coordinator.save_context_from(M_list[0][0][0])
+                    self.ctx_str, ctx = FedHEONN_coordinator.save_context_from(M_list[0][0][0])
 
                 # Prepare data for multiprocessing:
                 # Arrange list of estimators M&US[i] matrix's
@@ -143,7 +146,7 @@ class FedHEONN_coordinator:
                 # Split data in iterable groups - one for each process
                 M_base_groups  = self.split_list(M_base, n_processes)
                 US_base_groups = self.split_list(US_base, n_processes)
-                iterable = [[M_base_groups[k], US_base_groups[k], self.lam, self.sparse, self.encrypted, self.parallel, ctx_str]
+                iterable = [[M_base_groups[k], US_base_groups[k], self.lam, self.sparse, self.encrypted, self.parallel, self.ctx_str]
                             for k in range(n_processes)]
                 log.info(f"\t\tPreparing data for parallel process: {time.perf_counter()-t_ini:.3f} s")
 
@@ -164,7 +167,8 @@ class FedHEONN_coordinator:
 
                 # Delete temporary file containing the public tenSEAL context
                 if self.encrypted:
-                    FedHEONN_coordinator.delete_context(ctx_str)
+                    FedHEONN_coordinator.delete_context(self.ctx_str)
+                    self.ctx_str = None
 
             else:
                 # Aggregating in series (with bagging)
@@ -374,9 +378,9 @@ class FedHEONN_coordinator:
                 log.debug(f"\t\tDoing parallelized calculate_weights, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
 
                 # Save tenSEAL context to temp file and serialize CKKS vectors for later use in multiprocessing
-                ctx_str, ctx = None, None
-                if self.encrypted: # TODO: check for previously saved context
-                    ctx_str, ctx = FedHEONN_coordinator.save_context_from(self.M_glb[0][0])
+                ctx = None
+                if self.encrypted and self.ctx_str is None:
+                    self.ctx_str, ctx = FedHEONN_coordinator.save_context_from(self.M_glb[0][0])
                     for i in range(n_estimators):
                         self.M_glb[i] = [m.serialize() for m in self.M_glb[i]]
 
@@ -385,7 +389,7 @@ class FedHEONN_coordinator:
                 M_groups = self.split_list(self.M_glb, n_processes)
                 U_groups = self.split_list(self.U_glb, n_processes)
                 S_groups = self.split_list(self.S_glb, n_processes)
-                iterable = [[M_groups[k], U_groups[k], S_groups[k], self.lam, self.sparse, self.encrypted, self.parallel, ctx_str]
+                iterable = [[M_groups[k], U_groups[k], S_groups[k], self.lam, self.sparse, self.encrypted, self.parallel, self.ctx_str]
                             for k in range(n_processes)]
                 log.info(f"\t\tPreparing data for parallel process: {time.perf_counter() - t_ini:.3f} s")
 
@@ -403,10 +407,6 @@ class FedHEONN_coordinator:
                         else:
                             self.W.extend(w)
                 log.info(f"\t\tParallelized ({n_processes}) calculate_weights done in: {time.perf_counter() - t_ini:.3f} s")
-
-                # Delete temporary file containing the public tenSEAL context
-                if self.encrypted:
-                    FedHEONN_coordinator.delete_context(ctx_str)
 
             # Calculate weights in series (with bagging)
             else:
@@ -497,6 +497,10 @@ class FedHEONN_coordinator:
         self.M_glb      = []
         self.U_glb      = []
         self.S_glb      = []
+        # Possible saved context
+        if self.ctx_str is not None:
+            FedHEONN_coordinator.delete_context(self.ctx_str)
+            self.ctx_str = None
 
     @staticmethod
     def generate_ensemble_params():

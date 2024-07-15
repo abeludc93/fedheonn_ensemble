@@ -34,12 +34,12 @@ def main():
         lst_clients.append(client)
 
     # PERFORM GLOBAL FIT
-    #acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator, testX=testX, testT=testY, regression=False)
+    acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator, testX=testX, testT=testY, regression=False)
     acc_inc, _ = incremental_fit(list_clients=lst_clients, coord=coordinator, ngroups=1, testX=testX, testT=testY,
                                  regression=False, random_groups=False)
 
     # Print model's metrics
-    #log.info(f"Test accuracy global: {acc_glb:0.2f}")
+    log.info(f"Test accuracy global: {acc_glb:0.2f}")
     log.info(f"Test accuracy incremental: {acc_inc:0.2f}")
 
 if __name__ == "__main__":
