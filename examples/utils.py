@@ -226,11 +226,10 @@ def split_prepare_dataset(X, y, test_size, preprocess, iid, regression):
     if preprocess:
         train_X, test_X = normalize_dataset(train_data=train_X, test_data=test_X)
 
-    # IID scenario
-    train_X, train_t = shuffle_iid(trainX=train_X, trainY=train_t, iid=iid)
-
     # One-hot encoding
     if not regression:
+        # IID scenario
+        train_X, train_t = shuffle_iid(trainX=train_X, trainY=train_t, iid=iid)
         t_onehot = one_hot_encoding(trainY=train_t)
         return train_X, t_onehot, test_X, test_t, train_t
     else:
@@ -387,6 +386,98 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
 
             # Perform fit and predict validation split
             acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator, testX=testX_data, testT=testT_data, regression=False)
+            acc_glb_splits.append(acc_glb)
+
+        # Add results to dataframe dictionary
+        df_dict["LAMBDA"].append(lam)
+        df_dict["METRIC_MEAN"].append(np.array(acc_glb_splits).mean())
+        df_dict["METRIC_STD"].append(np.array(acc_glb_splits).std())
+        df_dict["N_ESTIMATORS"].append(n_estimators if bagging else None)
+        df_dict["B_SAMPLES"].append(b_samples if bagging else None)
+        df_dict["B_FEATS"].append(b_feats if bagging else None)
+        df_dict["P_SAMPLES"].append(p_samples if bagging else None)
+        df_dict["P_FEATS"].append(p_feats if bagging else None)
+
+    return df_dict
+
+# Function that performs a cross-validation grid-search on a certain regression dataset
+def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_splits,
+                             bagging, train_X, train_Y, clients):
+    # Hyperparameter search grid
+    lambda_lst          = [0.01, 0.1, 1, 10]
+    n_estimators_lst    = [2, 5, 10, 25, 50, 75, 100, 200]
+    p_samples_lst       = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    p_features_lst      = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+
+    # Ensemble method
+    if bagging:
+        gs_space = np.prod([len(i) for i in [lambda_lst, n_estimators_lst, p_samples_lst, p_features_lst, [True,False], [True,False]]])
+        gs_it = generate_grid_search_iterator(lambda_lst, n_estimators_lst, p_samples_lst, p_features_lst)
+    else:
+        gs_space = len(lambda_lst)
+        gs_it = lambda_lst
+    log.info(f"Grid search hyper-parameter space: {gs_space}")
+
+    # Pandas dataframe dictionary
+    df_dict = {"LAMBDA": [], "N_ESTIMATORS": [], "B_SAMPLES": [], "B_FEATS": [], "P_SAMPLES": [], "P_FEATS": [],
+               "METRIC_MEAN": [], "METRIC_STD": []}
+    # MAIN LOOP
+    for idx, tuple_it in enumerate(gs_it):
+        # Construct parameters
+        log.info(f"GS ITER {idx+1} of {gs_space}")
+        if bagging:
+            lam, n_estimators, b_samples, b_feats, p_samples, p_feats = tuple_it
+            ens_client = {'bagging': n_estimators,
+                      'bootstrap_samples': b_samples, 'p_samples': p_samples,
+                      'bootstrap_features': b_feats, 'p_features': p_feats
+                      }
+            ens_coord = {'bagging'}
+        else:
+            lam = tuple_it
+            ens_client = {}
+            ens_coord = {}
+
+        # Create the coordinator
+        coordinator = FedHEONN_coordinator(f=f_activ, lam=lam, encrypted=encryption, ensemble=ens_coord)
+        # Generate random indexes
+        if ens_coord:
+            n_attributes = train_X.shape[1]
+            coordinator.calculate_idx_feats(n_estimators, n_attributes, p_feats, b_feats)
+
+        # Cross-validation
+        if cv_type:
+            cv = KFold(n_splits=n_splits)
+        else:
+            cv = ShuffleSplit(n_splits=n_splits, test_size=0.2, random_state=42)
+        acc_glb_splits = []
+
+        # CV Loop
+        for it, (train_index, test_index) in  enumerate(cv.split(train_X, train_Y)):
+
+            # Get split indexes
+            log.info(f"\tCross validation split: {it+1}")
+            trainX_data, trainT_data = train_X[train_index], train_Y[train_index]
+            testX_data, testT_data = train_X[test_index], train_Y[test_index]
+            n_split = trainT_data.shape[0]
+
+            # Create a list of clients and fit clients with their local data
+            lst_clients = []
+            for i in range(clients):
+
+                # Split train equally data among clients
+                rang = range(int(i * n_split / clients), int(i * n_split / clients) + int(n_split / clients))
+                client = FedHEONN_regressor(f=f_activ, encrypted=encryption, sparse=sparse, context=context, ensemble=ens_client)
+                log.debug(f"\t\tTraining client: {i+1} of {clients} ({min(rang)}-{max(rang)})")
+                if ens_client:
+                    client.set_idx_feats(coordinator.send_idx_feats())
+
+                # Fit client local data
+                client.fit(trainX_data[rang], trainT_data[rang])
+                lst_clients.append(client)
+
+            # Perform fit and predict validation split
+            acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator,
+                                    testX=testX_data, testT=testT_data, regression=True)
             acc_glb_splits.append(acc_glb)
 
         # Add results to dataframe dictionary
