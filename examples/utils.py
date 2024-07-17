@@ -7,13 +7,16 @@ Module containing auxiliary functions used in incremental examples
 """
 # Standard libraries
 from random import seed, shuffle, randint
+from itertools import product
+import time
+import os
 # Third-party libraries
 import numpy as np
 import pandas as pd
 from sklearn.datasets import load_digits
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold, ShuffleSplit
 from sklearn.preprocessing import StandardScaler
 from ucimlrepo import fetch_ucirepo
 # Application modules
@@ -26,6 +29,19 @@ from auxiliary.logger import logger as log
 seed(1)
 
 
+def generate_grid_search_iterator(lambda_grid, n_estimators_grid,
+                                  p_samples_grid=None, p_features_grid=None,
+                                  b_sample_grid=None, b_features_grid=None):
+    if p_features_grid is None:
+        p_features_grid = [1.0]
+    if p_samples_grid is None:
+        p_samples_grid = [1.0]
+    if b_features_grid is None:
+        b_features_grid = [True, False]
+    if b_sample_grid is None:
+        b_sample_grid = [True, False]
+    return product(lambda_grid, n_estimators_grid, b_sample_grid, b_features_grid, p_samples_grid, p_features_grid)
+
 # Function to obtain prediction metrics for given (testX,testT) data using one client and a coordinator
 def get_prediction(ex_client, coord, testX, testT, regression=True):
     # Send the weights of the aggregate model to example client
@@ -34,7 +50,7 @@ def get_prediction(ex_client, coord, testX, testT, regression=True):
     test_y = ex_client.predict(testX)
     if regression:
         # Global MSE for the 3 outputs
-        metric = 100 * mean_squared_error(testT, test_y) #TODO: not a percentage, divide by 100
+        metric = mean_squared_error(testT, test_y)
     else:
         # Global precision for all outputs (percentage)
         metric = 100 * accuracy_score(testT, test_y)
@@ -323,3 +339,112 @@ def load_dry_bean(f_test_size=0.3, b_preprocess=True, b_iid=True):
         t_onehot[i, value] = 1
 
     return train_X, t_onehot, test_X, test_t, train_t
+
+def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, n_splits, bagging,
+                                 train_X, train_Y_onehot, train_Y, clients):
+    # Hyperparameter search grid
+    lambda_lst          = [0.01, 0.1]
+    n_estimators_lst    = [5]
+    p_samples_lst       = [0.7]
+    p_features_lst      = [0.7]
+
+    # Ensemble method
+    if bagging:
+        gs_space = np.prod([len(i) for i in [lambda_lst, n_estimators_lst, p_samples_lst, p_features_lst, [True,False], [True,False]]])
+        gs_it = generate_grid_search_iterator(lambda_lst, n_estimators_lst, p_samples_lst, p_features_lst)
+    else:
+        gs_space = len(lambda_lst)
+        gs_it = lambda_lst
+    log.info(f"Grid search hyper-parameter space: {gs_space}")
+
+    # Pandas dataframe dictionary
+    df_dict = {"LAMBDA": [], "N_ESTIMATORS": [], "B_SAMPLES": [], "B_FEATS": [], "P_SAMPLES": [], "P_FEATS": [],
+               "METRIC_MEAN": [], "METRIC_STD": []}
+    # MAIN LOOP
+    for idx, tuple_it in enumerate(gs_it):
+        # Construct parameters
+        log.info(f"GS ITER {idx+1} of {gs_space}")
+        if bagging:
+            lam, n_estimators, b_samples, b_feats, p_samples, p_feats = tuple_it
+            ens_client = {'bagging': n_estimators,
+                      'bootstrap_samples': b_samples, 'p_samples': p_samples,
+                      'bootstrap_features': b_feats, 'p_features': p_feats
+                      }
+            ens_coord = {'bagging'}
+        else:
+            lam = tuple_it
+            ens_client = {}
+            ens_coord = {}
+
+        # Create the coordinator
+        coordinator = FedHEONN_coordinator(f=f_activ, lam=lam, encrypted=encryption, ensemble=ens_coord)
+        # Generate random indexes
+        if ens_coord:
+            n_attributes = train_X.shape[1]
+            coordinator.calculate_idx_feats(n_estimators, n_attributes, p_feats, b_feats)
+
+        # Cross-validation
+        if cv_type:
+            cv = KFold(n_splits=n_splits)
+        else:
+            cv = ShuffleSplit(n_splits=n_splits, test_size=0.2, random_state=42)
+        acc_glb_splits = []
+
+        # CV Loop
+        for it, (train_index, test_index) in  enumerate(cv.split(train_X, train_Y_onehot)):
+
+            # Get split indexes
+            log.info(f"\tCross validation split: {it+1}")
+            trainX_data, trainT_data = train_X[train_index], train_Y_onehot[train_index]
+            testX_data, testT_data = train_X[test_index], train_Y[test_index]
+            n_split = trainT_data.shape[0]
+
+            # Create a list of clients and fit clients with their local data
+            lst_clients = []
+            for i in range(clients):
+
+                # Split train equally data among clients
+                rang = range(int(i * n_split / clients), int(i * n_split / clients) + int(n_split / clients))
+                client = FedHEONN_classifier(f=f_activ, encrypted=encryption, sparse=sparse, context=context, ensemble=ens_client)
+                log.info(f"\t\tTraining client: {i+1} of {clients} ({min(rang)}-{max(rang)})")
+                if ens_client:
+                    client.set_idx_feats(coordinator.send_idx_feats())
+
+                # Fit client local data
+                client.fit(trainX_data[rang], trainT_data[rang])
+                lst_clients.append(client)
+
+            # Perform fit and predict validation split
+            acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator, testX=testX_data, testT=testT_data, regression=False)
+            acc_glb_splits.append(acc_glb)
+
+        # Add results to dataframe dictionary
+        df_dict["LAMBDA"].append(lam)
+        df_dict["METRIC_MEAN"].append(np.array(acc_glb_splits).mean())
+        df_dict["METRIC_STD"].append(np.array(acc_glb_splits).std())
+        df_dict["N_ESTIMATORS"].append(n_estimators if bagging else None)
+        df_dict["B_SAMPLES"].append(b_samples if bagging else None)
+        df_dict["B_FEATS"].append(b_feats if bagging else None)
+        df_dict["P_SAMPLES"].append(p_samples if bagging else None)
+        df_dict["P_FEATS"].append(p_feats if bagging else None)
+
+    return df_dict
+
+def export_dataframe_results(dict_no_bag, dict_bag, dataset_name, regression=False):
+    # Construct dataframe, sort and export data
+    pd.set_option("display.precision", 8)
+    df1 = pd.DataFrame(dict_no_bag)
+    df1.sort_values(by="METRIC_MEAN", inplace=True, ascending=regression)
+    log.info(f"WITHOUT BAGGING:\n{df1.head()}")
+    df2 = pd.DataFrame(dict_bag)
+    df2.sort_values(by="METRIC_MEAN", inplace=True, ascending=regression)
+    log.info(f"WITH BAGGING:\n{df2.head()}")
+
+    # ExcelWriter to export
+    lt = time.localtime()
+    timestamp = f"{lt.tm_year}{lt.tm_mon}{lt.tm_mday}_{lt.tm_hour}{lt.tm_min}"
+    filename = f"GridSearchCV_{dataset_name}_{timestamp}.xlsx"
+    file_path = os.path.normpath(os.getcwd() + os.sep + os.pardir + os.sep + filename)
+    with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
+        df1.to_excel(writer, sheet_name="CLASSIC", index=False)
+        df2.to_excel(writer, sheet_name="ENSEMBLE", index=False)

@@ -117,6 +117,7 @@ def main():
             df_dict["P_FEATS"].append(p_feats)
 
     # Construct dataframe, sort and export data
+    pd.set_option("display.precision", 8)
     df = pd.DataFrame(df_dict)
     df.sort_values(by="METRIC_MEAN", inplace=True, ascending=False)
     lt = time.localtime()
@@ -163,8 +164,8 @@ if __name__ == "__main__":
 
     # HYPER-PARAMETER SEARCH GRID
     # Normal execution
-    #bag = False
-    #main()
-    # Ensemble
-    bag = True
+    bag = False
     main()
+    # Ensemble
+    #bag = True
+    #main()

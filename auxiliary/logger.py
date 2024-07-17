@@ -12,13 +12,15 @@ Logs both to sys_out and to a log file on the current directory.
 import logging
 import sys
 import os
+import time
 
 # Define global variables
 APP_NAME = "FedHEONN"
 LOG_LEVEL_CMD = logging.INFO
 LOG_LEVEL_FILE = logging.DEBUG
-LOG_FILE = "out.log"
-LOG_PATH = os.path.normpath(os.getcwd() + os.sep + os.pardir) #TODO meter fecha
+LOG_PATH = os.path.normpath(os.getcwd() + os.sep + os.pardir)
+TIME_CREATION = time.asctime().replace(':','').replace(' ','_')
+LOG_FILE = f"{TIME_CREATION}.log"
 
 
 # Create a console handler and set log level
@@ -26,7 +28,7 @@ _ch = logging.StreamHandler(sys.stdout)
 _ch.setLevel(LOG_LEVEL_CMD)
 
 # Create a file handler and set log level
-_fh = logging.FileHandler("{0}/{1}".format(LOG_PATH, LOG_FILE))
+_fh = logging.FileHandler(f"{LOG_PATH}/{LOG_FILE}")
 _fh.setLevel(LOG_LEVEL_FILE)
 
 # Create a formatter and attach to handlers
