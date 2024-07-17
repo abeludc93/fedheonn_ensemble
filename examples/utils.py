@@ -15,6 +15,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from ucimlrepo import fetch_ucirepo
 # Application modules
 from algorithm.fedHEONN_clients import FedHEONN_classifier, FedHEONN_regressor
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
@@ -33,9 +34,9 @@ def get_prediction(ex_client, coord, testX, testT, regression=True):
     test_y = ex_client.predict(testX)
     if regression:
         # Global MSE for the 3 outputs
-        metric = 100 * mean_squared_error(testT, test_y) # TODO: not a percentage
+        metric = 100 * mean_squared_error(testT, test_y) #TODO: not a percentage, divide by 100
     else:
-        # Global precision for all outputs
+        # Global precision for all outputs (percentage)
         metric = 100 * accuracy_score(testT, test_y)
 
     return metric
@@ -84,7 +85,7 @@ def get_params_group(group):
 # returning the mean squared error and optimal weights on the test data
 def incremental_fit(list_clients, coord, ngroups, testX, testT, regression=True, random_groups=False):
     # Flag to make predictions after incrementally processing each group
-    debug = True
+    debug = False
     # Shuffle client list
     shuffle(list_clients)
     # Group clients
@@ -208,7 +209,56 @@ def load_mnist_digits(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
     return train_X, t_onehot, test_X, test_t, train_t
 
-# Function to load and prepare Dry-Bean dataset
+# Function to load and prepare the Skin dataset
+def load_skin_dataset(f_test_size=0.3, b_preprocess=True, b_iid=True):
+    log.info("[*] SKIN DATASET [*]")
+    # Create and split classification dataset
+    skin_segmentation = fetch_ucirepo(id=229)
+    X = skin_segmentation.data.features
+    y = skin_segmentation.data.targets
+    data = X.to_numpy()
+    target = y.to_numpy()
+    target = target.reshape(target.shape[0]) - 1 # Target classes original values: 1-2 => Target classes: 0-1
+
+    # flatten the images
+    train_X, test_X, train_t, test_t = train_test_split(data, target, test_size=f_test_size, random_state=42)
+
+    if b_preprocess:
+        # Data normalization (z-score): mean 0 and std 1
+        log.info("\t\tData normalization (z-score)")
+        scaler = StandardScaler().fit(train_X)
+        train_X = scaler.transform(train_X)
+        test_X = scaler.transform(test_X)
+
+    # Number of training and test data
+    n = len(train_t)
+
+    # Non-IID option: Sort training data by class
+    if not b_iid:
+        log.info('\t\tnon-IID scenario')
+        ind = np.argsort(train_t)
+        train_t = train_t[ind]
+        train_X = train_X[ind]
+    else:
+        # Data are shuffled in case they come ordered by class
+        log.info('\t\tIID scenario')
+        ind_list = list(range(n))
+        np.random.seed(1)
+        np.random.shuffle(ind_list)
+        train_X = train_X[ind_list]
+        train_t = train_t[ind_list]
+
+    # Number of classes
+    n_classes = len(np.unique(train_t))
+
+    # One hot encoding for the targets
+    t_onehot = np.zeros((n, n_classes))
+    for i, value in enumerate(train_t):
+        t_onehot[i, value] = 1
+
+    return train_X, t_onehot, test_X, test_t, train_t
+
+# Function to load and prepare carbon-nanotube dataset
 def load_carbon_nanotube(f_test_size=0.3, b_preprocess=True):
     log.info("[*] CARBON NANOTUBE DATASET [*]")
     # Read dataset

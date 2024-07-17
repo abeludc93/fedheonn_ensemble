@@ -59,12 +59,12 @@ if __name__ == "__main__":
     # Preprocess data
     pre = True
     # Parallelized
-    par = False
+    par = True
     par_coord = True
     # Ensemble
     bag = True
     # Random Patches bagging parameters
-    n_estimators = 8
+    n_estimators = 25
     p_samples = 1.0
     b_samples = False
     p_feat = 1.0

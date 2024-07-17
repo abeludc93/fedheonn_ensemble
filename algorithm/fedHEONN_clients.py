@@ -23,8 +23,8 @@ class FedHEONN_client:
         """Constructor method"""
         self.f, self.f_inv, self.fderiv = _load_act_fn(f)
         self.encrypted  = encrypted # Encryption hyperparameter
-        self.sparse     = sparse # Sparse hyperparameter
-        self.ensemble   = ensemble # Ensemble methods dictionary
+        self.sparse     = sparse    # Sparse hyperparameter
+        self.ensemble   = ensemble  # Ensemble methods dictionary
         self.M          = []
         self.US         = []
         self.W          = None

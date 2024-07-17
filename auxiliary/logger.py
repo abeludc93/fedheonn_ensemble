@@ -18,7 +18,7 @@ APP_NAME = "FedHEONN"
 LOG_LEVEL_CMD = logging.INFO
 LOG_LEVEL_FILE = logging.DEBUG
 LOG_FILE = "out.log"
-LOG_PATH = os.path.normpath(os.getcwd() + os.sep + os.pardir)
+LOG_PATH = os.path.normpath(os.getcwd() + os.sep + os.pardir) #TODO meter fecha
 
 
 # Create a console handler and set log level

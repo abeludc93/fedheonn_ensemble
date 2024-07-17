@@ -36,9 +36,10 @@ class FedHEONN_coordinator:
         self.idx_feats  = []
         # Auxiliary variable
         self.ctx_str    = None
+        self.ctx_persist= False
 
     def __del__(self):
-        if getattr(self, 'ctx_str', None):
+        if getattr(self, 'ctx_str', None) and not getattr(self, 'ctx_persist', False):
             FedHEONN_coordinator.delete_context(self.ctx_str)
 
     @staticmethod
@@ -506,6 +507,12 @@ class FedHEONN_coordinator:
         if self.ctx_str is not None:
             FedHEONN_coordinator.delete_context(self.ctx_str)
             self.ctx_str = None
+
+    def get_ctx_str(self):
+        return self.ctx_str
+
+    def set_ctx_str(self, ctx_str):
+        self.ctx_str = ctx_str
 
     @staticmethod
     def generate_ensemble_params():
