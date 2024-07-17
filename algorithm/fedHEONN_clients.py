@@ -149,7 +149,7 @@ class FedHEONN_client:
                 # Append to master M&US matrix's
                 self.M.append(M_e)
                 self.US.append(US_e)
-            log.info(f"\t\tSerialized bagging fitting done in: {time.perf_counter() - t_ini:.3f} s")
+            log.debug(f"\t\tSerialized bagging fitting done in: {time.perf_counter() - t_ini:.3f} s")
         else:
             t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
             n_processes = min(cpu, n_estimators)
@@ -170,7 +170,7 @@ class FedHEONN_client:
                     # Append to master M&US matrix's
                     self.M.append(M_e)
                     self.US.append(US_e)
-            log.info(f"\t\tParallelized ({n_processes}) bagging fitting done in: {time.perf_counter()-t_ini:.3f} s")
+            log.debug(f"\t\tParallelized ({n_processes}) bagging fitting done in: {time.perf_counter()-t_ini:.3f} s")
 
     def _bagging_fit(self, X, t, p_samples, b_samples, n_outputs, estimator_idx):
         M_e, US_e = [], []

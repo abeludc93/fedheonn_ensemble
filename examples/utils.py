@@ -66,7 +66,7 @@ def group_clients(list_clients, ngroups, randomize=False):
     if not randomize:
         # Group clients
         for i in range(0, len(list_clients), ngroups):
-            log.info(f"\t\tGrouping clients: ({i}:{i + ngroups})")
+            log.debug(f"\t\tGrouping clients: ({i}:{i + ngroups})")
             group = list_clients[i:i + ngroups]
             groups.append(group)
     else:
@@ -76,7 +76,7 @@ def group_clients(list_clients, ngroups, randomize=False):
             n_groups_rnd = randint(ngroups // 2, 2 * ngroups)
             if idx + n_groups_rnd > len(list_clients):
                 n_groups_rnd = len(list_clients) - idx
-            log.info(f"\t\tGrouping clients randomly: ({idx}:{idx + n_groups_rnd})")
+            log.debug(f"\t\tGrouping clients randomly: ({idx}:{idx + n_groups_rnd})")
             group = list_clients[idx:idx + n_groups_rnd]
             groups.append(group)
             idx += n_groups_rnd
@@ -170,7 +170,7 @@ def create_list_clients(n_clients, trainX, trainY, regression, f_act, enc, spr, 
             client = FedHEONN_regressor(f=f_act, encrypted=enc, sparse=spr, context=ctx, ensemble=ens_client)
         else:
             client = FedHEONN_classifier(f=f_act, encrypted=enc, sparse=spr, context=ctx, ensemble=ens_client)
-        log.info(f"\tTraining client: {i+1} of {n_clients} ({min(rang)}-{max(rang)})")
+        log.debug(f"\tTraining client: {i+1} of {n_clients} ({min(rang)}-{max(rang)})")
         # Fit client local data
         if ens_client:
             client.set_idx_feats(coord.send_idx_feats())
@@ -347,7 +347,7 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
         for it, (train_index, test_index) in  enumerate(cv.split(train_X, train_Y_onehot)):
 
             # Get split indexes
-            log.info(f"\tCross validation split: {it+1}")
+            log.debug(f"\tCross validation split: {it+1}")
             trainX_data, trainT_data = train_X[train_index], train_Y_onehot[train_index]
             testX_data, testT_data = train_X[test_index], train_Y[test_index]
             n_split = trainT_data.shape[0]
@@ -359,7 +359,7 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
                 # Split train equally data among clients
                 rang = range(int(i * n_split / clients), int(i * n_split / clients) + int(n_split / clients))
                 client = FedHEONN_classifier(f=f_activ, encrypted=encryption, sparse=sparse, context=context, ensemble=ens_client)
-                log.info(f"\t\tTraining client: {i+1} of {clients} ({min(rang)}-{max(rang)})")
+                log.debug(f"\t\tTraining client: {i+1} of {clients} ({min(rang)}-{max(rang)})")
                 if ens_client:
                     client.set_idx_feats(coordinator.send_idx_feats())
 
@@ -385,6 +385,7 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
 
 # Function that exports grid-search-cv results to an Excel file
 def export_dataframe_results(dict_no_bag, dict_bag, dataset_name, regression=False):
+
     # Construct dataframe, sort and export data
     pd.set_option("display.precision", 8)
     df1 = pd.DataFrame(dict_no_bag)

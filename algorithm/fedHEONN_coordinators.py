@@ -149,7 +149,7 @@ class FedHEONN_coordinator:
                 US_base_groups = self.split_list(US_base, n_processes)
                 iterable = [[M_base_groups[k], US_base_groups[k], self.lam, self.sparse, self.encrypted, self.parallel, self.ctx_str]
                             for k in range(n_processes)]
-                log.info(f"\t\tPreparing data for parallel process: {time.perf_counter()-t_ini:.3f} s")
+                log.debug(f"\t\tPreparing data for parallel process: {time.perf_counter()-t_ini:.3f} s")
 
                 # Multiprocessing POOL
                 t_ini = time.perf_counter()
@@ -164,7 +164,7 @@ class FedHEONN_coordinator:
                             self.W.extend(w)
                         else:
                             self.W.extend(w)
-                log.info(f"\t\tParallelized ({n_processes}) aggregation done in: {time.perf_counter() - t_ini:.3f} s")
+                log.debug(f"\t\tParallelized ({n_processes}) aggregation done in: {time.perf_counter() - t_ini:.3f} s")
 
                 # Delete temporary file containing the public tenSEAL context
                 if self.encrypted:
@@ -221,9 +221,9 @@ class FedHEONN_coordinator:
 
             # Aggregate each estimators output
             n_estimators = len(US_list[0])
-            self.M_glb = [[] for i in range(n_estimators)] if not self.M_glb else self.M_glb
-            self.U_glb = [[] for i in range(n_estimators)] if not self.U_glb else self.U_glb
-            self.S_glb = [[] for i in range(n_estimators)] if not self.S_glb else self.S_glb
+            self.M_glb = [[] for _ in range(n_estimators)] if not self.M_glb else self.M_glb
+            self.U_glb = [[] for _ in range(n_estimators)] if not self.U_glb else self.U_glb
+            self.S_glb = [[] for _ in range(n_estimators)] if not self.S_glb else self.S_glb
 
             # Partial aggregation in series (with bagging)
             if not self.parallel:
@@ -283,7 +283,7 @@ class FedHEONN_coordinator:
                             M, U, S = tuple_results[i]
                             self.M_glb[i], self.U_glb[i], self.S_glb[i] = M, U, S
 
-                log.info(f"\t\tParallelized ({n_processes}) partial aggregation done in: {time.perf_counter()-t_ini:.3f} s")
+                log.debug(f"\t\tParallelized ({n_processes}) partial aggregation done in: {time.perf_counter()-t_ini:.3f} s")
         else:
             # Partial aggregation in series (without bagging)
             FedHEONN_coordinator._aggregate_partial(M_list=M_list, US_list=US_list,
@@ -397,7 +397,7 @@ class FedHEONN_coordinator:
                 S_groups = self.split_list(self.S_glb, n_processes)
                 iterable = [[M_groups[k], U_groups[k], S_groups[k], self.lam, self.sparse, self.encrypted, self.parallel, self.ctx_str]
                             for k in range(n_processes)]
-                log.info(f"\t\tPreparing data for parallel process: {time.perf_counter() - t_ini:.3f} s")
+                log.debug(f"\t\tPreparing data for parallel process: {time.perf_counter() - t_ini:.3f} s")
 
                 # Multiprocessing POOL
                 t_ini = time.perf_counter()
@@ -412,7 +412,7 @@ class FedHEONN_coordinator:
                             self.W.extend(w)
                         else:
                             self.W.extend(w)
-                log.info(f"\t\tParallelized ({n_processes}) calculate_weights done in: {time.perf_counter() - t_ini:.3f} s")
+                log.debug(f"\t\tParallelized ({n_processes}) calculate_weights done in: {time.perf_counter() - t_ini:.3f} s")
 
             # Calculate weights in series (with bagging)
             else:
