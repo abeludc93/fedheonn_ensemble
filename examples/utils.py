@@ -314,10 +314,10 @@ def load_mini_boone(f_test_size=0.3, b_preprocess=True, b_iid=True):
 def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, n_splits, bagging,
                                  train_X, train_Y_onehot, train_Y, clients):
     # Hyperparameter search grid
-    lambda_lst          = [0.01, 0.1]
-    n_estimators_lst    = [5]
-    p_samples_lst       = [0.7]
-    p_features_lst      = [0.7]
+    lambda_lst          = [0.01, 0.1, 1, 10]
+    n_estimators_lst    = [2, 5, 10, 25, 50, 75, 100, 200]
+    p_samples_lst       = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    p_features_lst      = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
     # Ensemble method
     if bagging:
