@@ -292,6 +292,24 @@ def load_dry_bean(f_test_size=0.3, b_preprocess=True, b_iid=True):
     return split_prepare_dataset(X=Inputs, y=Labels,
                                  test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
 
+def load_mini_boone(f_test_size=0.3, b_preprocess=True, b_iid=True):
+
+    log.info("[*] MINI BOONE DATASET [*]")
+    # Read dataset
+    with open('../datasets/MiniBooNE_PID.txt') as f:
+        first_line = f.readline()
+    first_line = first_line.rstrip('\n').lstrip(' ').split(' ')
+    n_signal, n_background = int(first_line[0]), int(first_line[1])
+    data = pd.read_table('../datasets/MiniBooNE_PID.txt', header=None, skiprows=1, sep='\s+')
+    labels_signal, labels_background = np.zeros(n_signal, dtype=int), np.ones(n_background, dtype=int)
+
+    Inputs = data.to_numpy()
+    Labels = np.append(labels_signal, labels_background)
+
+    # Split, preprocess and encode
+    return split_prepare_dataset(X=Inputs, y=Labels,
+                                 test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
+
 # Function that performs a cross-validation grid-search on a certain classification dataset
 def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, n_splits, bagging,
                                  train_X, train_Y_onehot, train_Y, clients):
@@ -347,7 +365,7 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
         for it, (train_index, test_index) in  enumerate(cv.split(train_X, train_Y_onehot)):
 
             # Get split indexes
-            log.debug(f"\tCross validation split: {it+1}")
+            log.info(f"\tCross validation split: {it+1}")
             trainX_data, trainT_data = train_X[train_index], train_Y_onehot[train_index]
             testX_data, testT_data = train_X[test_index], train_Y[test_index]
             n_split = trainT_data.shape[0]
