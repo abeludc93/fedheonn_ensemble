@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 """
-incremental_utils.py
+utils.py
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Module containing auxiliary functions used in incremental examples
+Module containing auxiliary functions used in project's examples
 """
 # Standard libraries
 from random import seed, shuffle, randint
@@ -28,7 +28,7 @@ from auxiliary.logger import logger as log
 # Seed random numbers
 seed(1)
 
-
+# Function that yields an iterator with the cartesian product of the given iterables
 def generate_grid_search_iterator(lambda_grid, n_estimators_grid,
                                   p_samples_grid=None, p_features_grid=None,
                                   b_sample_grid=None, b_features_grid=None):
@@ -180,53 +180,77 @@ def create_list_clients(n_clients, trainX, trainY, regression, f_act, enc, spr, 
 
     return lst_clients
 
-# Function to load and prepare MNIST dataset
-def load_mnist_digits(f_test_size=0.3, b_preprocess=True, b_iid=True):
-    log.info("[*] MNIST DIGITS DATASET [*]")
-    # Create and split classification dataset
-    digits = load_digits()
-    # flatten the images
-    n_samples = len(digits.images)
-    data = digits.images.reshape((n_samples, -1))
-    train_X, test_X, train_t, test_t = train_test_split(data, digits.target, test_size=f_test_size, random_state=42)
+def normalize_dataset(train_data, test_data):
+    # Data normalization (z-score): mean 0 and std 1
+    log.info("\t\tData normalization (z-score)")
+    scaler = StandardScaler().fit(train_data)
+    trainX = scaler.transform(train_data)
+    testX = scaler.transform(test_data)
+    return trainX, testX
 
-    if b_preprocess:
-        # Data normalization (z-score): mean 0 and std 1
-        log.info("\t\tData normalization (z-score)")
-        scaler = StandardScaler().fit(train_X)
-        train_X = scaler.transform(train_X)
-        test_X = scaler.transform(test_X)
-
+def shuffle_iid(trainX, trainY, iid=True):
     # Number of training and test data
-    n = len(train_t)
-
+    n = len(trainY)
     # Non-IID option: Sort training data by class
-    if not b_iid:
+    if not iid:
         log.info('\t\tnon-IID scenario')
-        ind = np.argsort(train_t)
-        train_t = train_t[ind]
-        train_X = train_X[ind]
+        ind = np.argsort(trainY)
+        train_X = trainX[ind]
+        train_t = trainY[ind]
     else:
         # Data are shuffled in case they come ordered by class
         log.info('\t\tIID scenario')
         ind_list = list(range(n))
         np.random.seed(1)
         np.random.shuffle(ind_list)
-        train_X = train_X[ind_list]
-        train_t = train_t[ind_list]
+        train_X = trainX[ind_list]
+        train_t = trainY[ind_list]
 
+    return train_X, train_t
+
+def one_hot_encoding(trainY):
     # Number of classes
-    n_classes = len(np.unique(train_t))
-
+    n, n_classes = len(trainY), len(np.unique(trainY))
     # One hot encoding for the targets
     t_onehot = np.zeros((n, n_classes))
-    for i, value in enumerate(train_t):
+    for i, value in enumerate(trainY):
         t_onehot[i, value] = 1
 
-    return train_X, t_onehot, test_X, test_t, train_t
+    return t_onehot
+
+def split_prepare_dataset(X, y, test_size, preprocess, iid, regression):
+    # Traint-Test split
+    train_X, test_X, train_t, test_t = train_test_split(X, y, test_size=test_size, random_state=42)
+
+    # Normalize if necessary
+    if preprocess:
+        train_X, test_X = normalize_dataset(train_data=train_X, test_data=test_X)
+
+    # IID scenario
+    train_X, train_t = shuffle_iid(trainX=train_X, trainY=train_t, iid=iid)
+
+    # One-hot encoding
+    if not regression:
+        t_onehot = one_hot_encoding(trainY=train_t)
+        return train_X, t_onehot, test_X, test_t, train_t
+    else:
+        return train_X, train_t, test_X, test_t
+
+# Function to load and prepare MNIST dataset
+def load_mnist_digits(f_test_size=0.3, b_preprocess=True, b_iid=True):
+
+    log.info("[*] MNIST DIGITS DATASET [*]")
+    # Load dataset
+    digits = load_digits()
+    X_data, y_data = digits.data, digits.target
+
+    # Split, preprocess and encode
+    return split_prepare_dataset(X=X_data, y=y_data,
+                                 test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
 
 # Function to load and prepare the Skin dataset
 def load_skin_dataset(f_test_size=0.3, b_preprocess=True, b_iid=True):
+
     log.info("[*] SKIN DATASET [*]")
     # Create and split classification dataset
     skin_segmentation = fetch_ucirepo(id=229)
@@ -236,66 +260,26 @@ def load_skin_dataset(f_test_size=0.3, b_preprocess=True, b_iid=True):
     target = y.to_numpy()
     target = target.reshape(target.shape[0]) - 1 # Target classes original values: 1-2 => Target classes: 0-1
 
-    # flatten the images
-    train_X, test_X, train_t, test_t = train_test_split(data, target, test_size=f_test_size, random_state=42)
-
-    if b_preprocess:
-        # Data normalization (z-score): mean 0 and std 1
-        log.info("\t\tData normalization (z-score)")
-        scaler = StandardScaler().fit(train_X)
-        train_X = scaler.transform(train_X)
-        test_X = scaler.transform(test_X)
-
-    # Number of training and test data
-    n = len(train_t)
-
-    # Non-IID option: Sort training data by class
-    if not b_iid:
-        log.info('\t\tnon-IID scenario')
-        ind = np.argsort(train_t)
-        train_t = train_t[ind]
-        train_X = train_X[ind]
-    else:
-        # Data are shuffled in case they come ordered by class
-        log.info('\t\tIID scenario')
-        ind_list = list(range(n))
-        np.random.seed(1)
-        np.random.shuffle(ind_list)
-        train_X = train_X[ind_list]
-        train_t = train_t[ind_list]
-
-    # Number of classes
-    n_classes = len(np.unique(train_t))
-
-    # One hot encoding for the targets
-    t_onehot = np.zeros((n, n_classes))
-    for i, value in enumerate(train_t):
-        t_onehot[i, value] = 1
-
-    return train_X, t_onehot, test_X, test_t, train_t
+    # Split, preprocess and encode
+    return split_prepare_dataset(X=data, y=target,
+                                 test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
 
 # Function to load and prepare carbon-nanotube dataset
 def load_carbon_nanotube(f_test_size=0.3, b_preprocess=True):
+
     log.info("[*] CARBON NANOTUBE DATASET [*]")
     # Read dataset
     Data = pd.read_csv('../datasets/carbon_nanotubes.csv', delimiter=';')
     Inputs = Data.iloc[:, :-3].to_numpy()
     Targets = Data.iloc[:, -3:].to_numpy()  # 3 outputs to predict
 
-    # Split
-    train_X, test_X, train_t, test_t = train_test_split(Inputs, Targets, test_size=f_test_size, random_state=42)
-
-    if b_preprocess:
-        # Data normalization (z-score): mean 0 and std 1
-        log.info("\t\tData normalization (z-score)")
-        scaler = StandardScaler().fit(train_X)
-        train_X = scaler.transform(train_X)
-        test_X = scaler.transform(test_X)
-
-    return train_X, train_t, test_X, test_t
+    # Split, preprocess and encode
+    return split_prepare_dataset(X=Inputs, y=Targets,
+                                 test_size=f_test_size, preprocess=b_preprocess, iid=False, regression=True)
 
 # Function to load and prepare Dry_Bean dataset
 def load_dry_bean(f_test_size=0.3, b_preprocess=True, b_iid=True):
+
     log.info("[*] DRY BEAN DATASET [*]")
     # Read dataset
     Data = pd.read_excel('../datasets/Dry_Bean_Dataset.xlsx', sheet_name='Dry_Beans_Dataset')
@@ -303,43 +287,12 @@ def load_dry_bean(f_test_size=0.3, b_preprocess=True, b_iid=True):
         {'BARBUNYA': 0, 'BOMBAY': 1, 'CALI': 2, 'DERMASON': 3, 'HOROZ': 4, 'SEKER': 5, 'SIRA': 6})
     Inputs = Data.iloc[:, :-1].to_numpy()
     Labels = Data.iloc[:, -1].to_numpy()
-    train_X, test_X, train_t, test_t = train_test_split(Inputs, Labels, test_size=f_test_size, random_state=42)
 
-    if b_preprocess:
-        # Data normalization (z-score): mean 0 and std 1
-        log.info("\t\tData normalization (z-score)")
-        scaler = StandardScaler().fit(train_X)
-        train_X = scaler.transform(train_X)
-        test_X = scaler.transform(test_X)
+    # Split, preprocess and encode
+    return split_prepare_dataset(X=Inputs, y=Labels,
+                                 test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
 
-    # Number of training and test data
-    n = len(train_t)
-
-    # Non-IID option: Sort training data by class
-    if not b_iid:
-        log.info('\t\tnon-IID scenario')
-        ind = np.argsort(train_t)
-        train_t = train_t[ind]
-        train_X = train_X[ind]
-    else:
-        # Data are shuffled in case they come ordered by class
-        log.info('\t\tIID scenario')
-        ind_list = list(range(n))
-        np.random.seed(1)
-        np.random.shuffle(ind_list)
-        train_X = train_X[ind_list]
-        train_t = train_t[ind_list]
-
-    # Number of classes
-    n_classes = len(np.unique(train_t))
-
-    # One hot encoding for the targets
-    t_onehot = np.zeros((n, n_classes))
-    for i, value in enumerate(train_t):
-        t_onehot[i, value] = 1
-
-    return train_X, t_onehot, test_X, test_t, train_t
-
+# Function that performs a cross-validation grid-search on a certain classification dataset
 def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, n_splits, bagging,
                                  train_X, train_Y_onehot, train_Y, clients):
     # Hyperparameter search grid
@@ -430,6 +383,7 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
 
     return df_dict
 
+# Function that exports grid-search-cv results to an Excel file
 def export_dataframe_results(dict_no_bag, dict_bag, dataset_name, regression=False):
     # Construct dataframe, sort and export data
     pd.set_option("display.precision", 8)

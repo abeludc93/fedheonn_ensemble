@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
-import numpy as np
-
+# Application modules
+from auxiliary.decorators import time_func
 from examples.utils import load_skin_dataset,  gridsearch_cv_classification, export_dataframe_results
 
+@time_func
 def main():
 
     # Load dataset
-    np.random.seed(1)
     trainX, trainY_onehot, testX, testY, trainY = load_skin_dataset(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
 
     # HYPER-PARAMETER SEARCH GRID
@@ -56,5 +56,5 @@ if __name__ == "__main__":
         ctx.generate_galois_keys()
         ctx.global_scale = 2 ** 40
     # --------
-    # TODO: Extract two best models (from classic execution and ensemble execution), train and evaluate on test!
+    # Extract two best models (from classic execution and ensemble execution), train and evaluate on test!
     main()
