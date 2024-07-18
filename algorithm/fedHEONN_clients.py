@@ -6,6 +6,8 @@ import multiprocessing
 from psutil import cpu_count
 from itertools import repeat
 import time
+import os
+import tempfile
 # Third-party libraries
 import numpy as np
 import scipy as sp
@@ -32,232 +34,9 @@ class FedHEONN_client:
         self.idx_feats  = []
         self.parallel   = parallel
 
-    def _fit(self, X, d):
-        # Number of data points (n)
-        n = np.size(X, 1)
-
-        # The bias is included as the first input (first row)
-        Xp = np.insert(X, 0, np.ones(n), axis=0)
-
-        # Inverse of the neural function
-        inv_d = self.f_inv(d)
-
-        # Derivative of the neural function
-        der_d = self.fderiv(inv_d)
-
-        if self.sparse:
-            # Diagonal sparse matrix
-            F_sparse = sp.sparse.spdiags(der_d, 0, der_d.size, der_d.size, format="csr")
-
-            # Matrix on which the Singular Value Decomposition will be calculated later
-            H = Xp @ F_sparse
-
-            # Singular Value Decomposition of H
-            U, S, _ = sp.linalg.svd(H, full_matrices=False)
-
-            # Calculate M
-            M = Xp @ (F_sparse @ (F_sparse @ inv_d.T))
-            M = M.flatten()
-        else:
-            # Diagonal matrix
-            F = np.diag(der_d)
-
-            # Matrix on which the Singular Value Decomposition will be calculated later
-            H = Xp @ F
-
-            # Singular Value Decomposition of H
-            U, S, _ = sp.linalg.svd(H, full_matrices=False)
-
-            # Calculate M
-            M = Xp @ (F @ (F @ inv_d))
-
-        # If the encrypted option is selected then the M vector is encrypted
-        if self.encrypted:
-            M = ts.ckks_vector(self.context, M)
-
-        return M, U @ np.diag(S)
-
-    def _predict(self, X):
-        # Number of variables (m) and data points (n)
-        m, n = X.shape
-
-        # Number of output neurons
-        n_outputs = len(self.W)
-
-        y = np.empty((0, n), float)
-
-        # For each output neuron
-        for o in range(n_outputs):
-            # If the weights are encrypted then they are decrypted to get the performance results
-            if self.encrypted:
-                W = np.array((self.W[o]).decrypt())
-            else:
-                W = self.W[o]
-            # Neural Network Simulation
-            y = np.vstack((y, self.f(W.transpose() @ np.insert(X, 0, np.ones(n), axis=0))))
-
-        return y
-
-    def get_param(self):
-        return self.M, self.US
-
-    def set_weights(self, W):
-        self.W = W
-
-    def set_context(self, context):
-        """Method that sets the tenseal context used in this client instance.
-
-        Parameters
-        ----------
-        context : tenseal context
-        """
-        self.context = context
-
-    def set_idx_feats(self, idx_feats):
-        self.idx_feats = idx_feats
-
-    def clean_client(self):
-        """Method that resets models auxiliary matrix's and weights"""
-        self.M         = []
-        self.US        = []
-        self.W         = None
-        self.idx_feats = []
-
-    def bagging_fit(self, X: np.ndarray, t: np.ndarray):
-        # Determine number of outputs/classes
-        _, n_outputs = t.shape
-
-        # Extract ensemble hyper-parameters (bagging)
-        n_estimators, p_samples, b_samples, p_features, b_features = self._extract_ensemble_params()
-        assert n_estimators > 1
-        assert p_features   > 0.0
-        assert p_samples    > 0.0
-        # No need for feature-indexing if p_feats is 1.0 and no replacement is being done
-        if p_features == 1.0 and b_features is False:
-            self.set_idx_feats([slice(None) for i in range(n_estimators)])
-
-        # Seed random generator: TODO eliminate feature when tests are done
-        np.random.seed(n_estimators * n_outputs)
-
-        # Parallelized fitting
-        if not self.parallel:
-            t_ini = time.perf_counter()
-            log.debug(f"\t\tDoing serialized bagging fitting, number of estimators: {({n_estimators})}")
-            # Arrange each estimator
-            for idx in range(n_estimators):
-                M_e, US_e = self._bagging_fit(X, t, p_samples, b_samples, n_outputs, idx)
-                # Append to master M&US matrix's
-                self.M.append(M_e)
-                self.US.append(US_e)
-            log.debug(f"\t\tSerialized bagging fitting done in: {time.perf_counter() - t_ini:.3f} s")
-        else:
-            t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
-            n_processes = min(cpu, n_estimators)
-            log.debug(f"\t\tDoing parallelized bagging, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
-            zip_iterable = zip(repeat(X), repeat(t), repeat(p_samples), repeat(b_samples), repeat(n_outputs),
-                               self.idx_feats, repeat(self.f_inv), repeat(self.fderiv), repeat(self.sparse))
-            with multiprocessing.Pool(processes=n_processes) as pool:
-                # Blocks until ready, ordered results
-                results = pool.starmap(FedHEONN_client.bagging_fit_static, zip_iterable)
-                log.debug(f"Bagging ({n_estimators} estimators) SVD-part done in : {time.perf_counter()-t_ini:.3f} s")
-                t_enc = time.perf_counter()
-                for idx, (M_e, US_e) in enumerate(results):
-                    if self.encrypted:
-                        # Encrypt M_e's
-                        M_e = [ts.ckks_vector(self.context, M) for M in M_e]
-                    if idx == len(results) -1:
-                        log.debug(f"Bagging ({n_estimators} estimators) ENC-part done in : {time.perf_counter()-t_enc:.3f} s")
-                    # Append to master M&US matrix's
-                    self.M.append(M_e)
-                    self.US.append(US_e)
-            log.debug(f"\t\tParallelized ({n_processes}) bagging fitting done in: {time.perf_counter()-t_ini:.3f} s")
-
-    def _bagging_fit(self, X, t, p_samples, b_samples, n_outputs, estimator_idx):
-        M_e, US_e = [], []
-        X_bag, t_bag = self._random_patches(X, t, self.idx_feats[estimator_idx], p_samples, b_samples)
-        # A model is generated for each output/class
-        for o in range(n_outputs):
-            M, US = self._fit(X_bag, t_bag[:, o])
-            M_e.append(M)
-            US_e.append(US)
-        return M_e, US_e
-
-    def normal_fit(self, X: np.ndarray, t: np.ndarray):
-        # Determine number of outputs/classes
-        _, n_outputs = t.shape
-
-        # A model is generated for each output/class
-        for o in range(n_outputs):
-            M, US = self._fit(X, t[:, o])
-            self.M.append(M)
-            self.US.append(US)
-
-    def bagging_predict(self, X:np.ndarray, n_estimators: int=None):
-        # List of estimator's predictions
-        predictions = []
-
-        # Save original weights
-        W_orig = self.W
-
-        # For each estimator predict values
-        for i in range(n_estimators):
-            # Prepare weights and test data
-            self.W = W_orig[i]
-            X_predict = X[self.idx_feats[i], :]
-            predictions.append(self._predict(X_predict))
-
-        # Restore original weights and return predictions
-        self.W = W_orig
-        return predictions
-
-    def _extract_ensemble_params(self):
-        if not self.ensemble:
-            log.warn(f"No ensemble hyper-parameters dictionary found in this client!")
-            return None
-        else:
-            n_estimators    = self.ensemble['bagging'] if 'bagging' in self.ensemble else 0
-            p_samples       = self.ensemble['p_samples'] if 'p_samples' in self.ensemble else 1.0
-            b_samples       = self.ensemble['bootstrap_samples'] if 'bootstrap_samples' in self.ensemble else True
-            p_features      = self.ensemble['p_features'] if 'p_features' in self.ensemble else 1.0
-            b_features      = self.ensemble['bootstrap_features'] if 'bootstrap_features' in self.ensemble else False
-        log.debug(f"\t\t"
-                  f"n_estimators: {n_estimators} "
-                  f"(p_samples: {p_samples} b_samples: {b_samples}) "
-                  f"(p_features:{p_features} b_features: {b_features})")
-        return n_estimators, p_samples, b_samples, p_features, b_features
-
-    def _set_ensemble_params(self, ensemble=None):
-        self.ensemble = {} if ensemble is None else ensemble
-
     @staticmethod
-    def _random_patches(X, d, idx_features, p_samples=1.0, bootstrap_samples=True):
-        """Function to create random patches"""
-        n_features, n_samples = X.shape
-        idx_samples  = np.sort(np.random.choice(n_samples, size=int(n_samples * p_samples), replace=bootstrap_samples))
-        log.debug(f"\t\t"
-                  f"Unique sample indexes: {len(np.unique(idx_samples))} "
-                  f"Unique feature indexes: {len(np.unique(idx_features))}"
-                  f"Feature indexes:\n{idx_features}\n")
-        return X[:,idx_samples][idx_features,:], d[idx_samples, :]
+    def _fit(X, d, f_inv, fderiv, sparse, encrypted, ts_context=None):
 
-    @staticmethod
-    def _reshape(arr):
-        return arr.reshape(len(arr), 1) if arr.ndim == 1 else arr
-
-    @staticmethod
-    def _preprocess(X, t):
-        X = FedHEONN_client._reshape(X).T
-        t = FedHEONN_client._reshape(t)
-        return X, t
-
-    @staticmethod
-    def generate_ensemble_params(n_estimators=10, p_samples=1.0, b_samples=True, p_features=1.0, b_features=False):
-        ensemble = {'bagging': n_estimators, 'p_samples': p_samples, 'bootstrap_samples': b_samples,
-                    'p_features': p_features, 'bootstrap_features': b_features}
-        return ensemble
-
-    @staticmethod
-    def fit_static(X, d, f_inv, fderiv, sparse):
         # Number of data points (n)
         n = np.size(X, 1)
         # The bias is included as the first input (first row)
@@ -287,18 +66,218 @@ class FedHEONN_client:
             # Calculate M
             M = Xp @ (F @ (F @ inv_d))
 
+        # If the encrypted option is selected then the M vector is encrypted
+        if encrypted and ts_context is not None:
+            M = ts.ckks_vector(ts_context, M)
+
         return M, U @ np.diag(S)
 
+    def _predict(self, X):
+        # Number of variables (m) and data points (n)
+        m, n = X.shape
+
+        # Number of output neurons
+        n_outputs = len(self.W)
+
+        y = np.empty((0, n), float)
+
+        # For each output neuron
+        for o in range(n_outputs):
+            # If the weights are encrypted then they are decrypted to get the performance results
+            if self.encrypted:
+                W = np.array((self.W[o]).decrypt())
+            else:
+                W = self.W[o]
+            # Neural Network Simulation
+            y = np.vstack((y, self.f(W.transpose() @ np.insert(X, 0, np.ones(n), axis=0))))
+
+        return y
+
+    def normal_fit(self, X: np.ndarray, t: np.ndarray):
+        # Determine number of outputs/classes
+        _, n_outputs = t.shape
+
+        # A model is generated for each output/class
+        for o in range(n_outputs):
+            M, US = self._fit(X, t[:, o], self.f_inv, self.fderiv, self.sparse, self.encrypted, self.context)
+            self.M.append(M)
+            self.US.append(US)
+
+    def bagging_fit(self, X: np.ndarray, t: np.ndarray):
+        # Determine number of outputs/classes
+        _, n_outputs = t.shape
+
+        # Extract ensemble hyper-parameters (bagging)
+        n_estimators, p_samples, b_samples, p_features, b_features = self._extract_ensemble_params()
+        assert n_estimators > 1
+        assert p_features   > 0.0
+        assert p_samples    > 0.0
+        # No need for feature-indexing if p_feats is 1.0 and no replacement is being done
+        if p_features == 1.0 and b_features is False:
+            self.set_idx_feats([slice(None) for i in range(n_estimators)])
+
+        # Seed random generator:
+        np.random.seed(n_estimators * n_outputs) # TODO eliminate feature when tests are done
+
+        # Fitting in series or in parallel
+        if self.parallel:
+
+            # Parallelized fitting
+            t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
+            n_processes = min(cpu, n_estimators)
+            log.debug(f"\t\tDoing parallelized bagging, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
+            zip_iterable = zip(repeat(X), repeat(t), repeat(p_samples), repeat(b_samples), repeat(n_outputs),
+                               self.idx_feats, repeat(self.f_inv), repeat(self.fderiv), repeat(self.sparse),
+                               repeat(self.encrypted), repeat(None))
+            with multiprocessing.Pool(processes=n_processes) as pool:
+                # Blocks until ready, ordered results
+                results = pool.starmap(FedHEONN_client._bagging_fit, zip_iterable)
+                log.debug(f"Bagging ({n_estimators} estimators) SVD-part done in : {time.perf_counter()-t_ini:.3f} s")
+                t_enc = time.perf_counter()
+                for idx, (M_e, US_e) in enumerate(results):
+                    if self.encrypted:
+                        # Encrypt M_e's
+                        M_e = [ts.ckks_vector(self.context, M) for M in M_e]
+                    if idx == len(results) - 1:
+                        log.debug(f"Bagging ({n_estimators} estimators) ENC-part done in : {time.perf_counter()-t_enc:.3f} s")
+                    # Append to master M&US matrix's
+                    self.M.append(M_e)
+                    self.US.append(US_e)
+            log.debug(f"\t\tParallelized ({n_processes}) bagging fitting done in: {time.perf_counter() - t_ini:.3f} s")
+
+        else:
+
+            #Serialized fitting
+            t_ini = time.perf_counter()
+            log.debug(f"\t\tDoing serialized bagging fitting, number of estimators: {({n_estimators})}")
+            # Arrange each estimator
+            for idx in range(n_estimators):
+                M_e, US_e = self._bagging_fit(X, t, p_samples, b_samples, n_outputs, self.idx_feats[idx],
+                                              self.f_inv, self.fderiv, self.sparse, self.encrypted, self.context)
+                # Append to master M&US matrix's
+                self.M.append(M_e)
+                self.US.append(US_e)
+            log.debug(f"\t\tSerialized bagging fitting done in: {time.perf_counter() - t_ini:.3f} s")
+
     @staticmethod
-    def bagging_fit_static(X, t, p_samples, b_samples, n_outputs, idx_feats, f_inv, fderiv, sparse):
+    def _bagging_fit(X, t, p_samples, b_samples, n_outputs, idx_feats, f_inv, fderiv, sparse, encrypted, ctx=None):
         M_e, US_e = [], []
         X_bag, t_bag = FedHEONN_client._random_patches(X, t, idx_feats, p_samples, b_samples)
         # A model is generated for each output/class
         for o in range(n_outputs):
-            M, US = FedHEONN_client.fit_static(X_bag, t_bag[:, o], f_inv, fderiv, sparse)
+            M, US = FedHEONN_client._fit(X_bag, t_bag[:, o], f_inv, fderiv, sparse, encrypted, ctx)
             M_e.append(M)
             US_e.append(US)
         return M_e, US_e
+
+    def bagging_predict(self, X:np.ndarray, n_estimators: int=None):
+        # List of estimator's predictions
+        predictions = []
+
+        # Save original weights
+        W_orig = self.W
+
+        # For each estimator predict values
+        for i in range(n_estimators):
+            # Prepare weights and test data
+            self.W = W_orig[i]
+            X_predict = X[self.idx_feats[i], :]
+            predictions.append(self._predict(X_predict))
+
+        # Restore original weights and return predictions
+        self.W = W_orig
+        return predictions
+
+
+    def get_param(self):
+        return self.M, self.US
+
+    def set_weights(self, W):
+        self.W = W
+
+    def set_context(self, context):
+        self.context = context
+
+    def set_idx_feats(self, idx_feats):
+        self.idx_feats = idx_feats
+
+    def clean_client(self):
+        """Method that resets models auxiliary matrix's and weights"""
+        self.M         = []
+        self.US        = []
+        self.W         = None
+        self.idx_feats = []
+
+    def _set_ensemble_params(self, ensemble=None):
+        self.ensemble = {} if ensemble is None else ensemble
+
+    def _extract_ensemble_params(self):
+        if not self.ensemble:
+            log.warn(f"No ensemble hyper-parameters dictionary found in this client!")
+            return None
+        else:
+            n_estimators    = self.ensemble['bagging'] if 'bagging' in self.ensemble else 0
+            p_samples       = self.ensemble['p_samples'] if 'p_samples' in self.ensemble else 1.0
+            b_samples       = self.ensemble['bootstrap_samples'] if 'bootstrap_samples' in self.ensemble else True
+            p_features      = self.ensemble['p_features'] if 'p_features' in self.ensemble else 1.0
+            b_features      = self.ensemble['bootstrap_features'] if 'bootstrap_features' in self.ensemble else False
+        log.debug(f"\t\t"
+                  f"n_estimators: {n_estimators} "
+                  f"(p_samples: {p_samples} b_samples: {b_samples}) "
+                  f"(p_features:{p_features} b_features: {b_features})")
+        return n_estimators, p_samples, b_samples, p_features, b_features
+
+    @staticmethod
+    def generate_ensemble_params(n_estimators=10, p_samples=1.0, b_samples=True, p_features=1.0, b_features=False):
+        ensemble = {'bagging': n_estimators, 'p_samples': p_samples, 'bootstrap_samples': b_samples,
+                    'p_features': p_features, 'bootstrap_features': b_features}
+        return ensemble
+
+    @staticmethod
+    def _random_patches(X, d, idx_features, p_samples=1.0, bootstrap_samples=True):
+        """Function to create random patches"""
+        n_features, n_samples = X.shape
+        idx_samples  = np.sort(np.random.choice(n_samples, size=int(n_samples * p_samples), replace=bootstrap_samples))
+        log.debug(f"\t\t"
+                  f"Unique sample indexes: {len(np.unique(idx_samples))} "
+                  f"Unique feature indexes: {len(np.unique(idx_features))}"
+                  f"Feature indexes:\n{idx_features}\n")
+        return X[:,idx_samples][idx_features,:], d[idx_samples, :]
+
+    @staticmethod
+    def _reshape(arr):
+        return arr.reshape(len(arr), 1) if arr.ndim == 1 else arr
+
+    @staticmethod
+    def _preprocess(X, t):
+        X = FedHEONN_client._reshape(X).T
+        t = FedHEONN_client._reshape(t)
+        return X, t
+
+    def save_context(self):
+        tmp = tempfile.NamedTemporaryFile(delete=False, prefix="FedHEONN")
+        tmp_filename = tmp.name
+        with open(tmp_filename, "wb") as ctx_32k:
+            # If context is already public save_secret_key will act as False, but no error will be thrown
+            ctx_32k.write(self.context.serialize(save_public_key=True, save_secret_key=True,
+                                                 save_galois_keys=True, save_relin_keys=True))
+        log.info(f"Saved tenSEAL context in: ({tmp_filename}) - {os.path.getsize(tmp_filename) / (1024 * 1024):.2f} MB")
+        return tmp_filename
+
+    @staticmethod
+    def load_context_from(ctx_str):
+        log.info(f"Loading context from: ({ctx_str})")
+        with open(ctx_str, "rb") as f:
+            loaded_context = ts.context_from(f.read())
+        return loaded_context
+
+    @staticmethod
+    def delete_context(ctx_str):
+        if ctx_str and os.path.isfile(ctx_str):
+            log.info(f"\t\tDeleting temporary file: {ctx_str}")
+            os.remove(ctx_str)
+        else:
+            log.warn(f"\t\tCouldn't delete temporary file (empty or not found): {ctx_str}")
 
 
 class FedHEONN_regressor(FedHEONN_client):

@@ -93,22 +93,6 @@ class FedHEONN_coordinator:
 
         return W_out
 
-    def send_weights(self):
-        return self.W
-
-    def calculate_idx_feats(self, n_estimators, n_features, p_features, b_features):
-        assert n_estimators > 1
-        assert p_features   > 0.0
-        # No need to calculate index features if p_feat is 1.0 and no replacement is allowed (bootstrap)
-        if self.ensemble and not (p_features == 1.0 and b_features is False):
-            np.random.seed(42)
-            self.idx_feats = []
-            for i in range(n_estimators):
-                self.idx_feats.append(np.sort(np.random.choice(n_features, size=int(n_features * p_features), replace=b_features)))
-
-    def send_idx_feats(self):
-        return self.idx_feats
-
     @time_func
     def aggregate(self, M_list, US_list):
         # Aggregates entire M&US lists at once
@@ -452,7 +436,6 @@ class FedHEONN_coordinator:
 
         return W
 
-
     @staticmethod
     def _calculate_weights(M_glb, U_glb, S_glb, lam, sparse, encrypted) -> []:
         """
@@ -508,6 +491,22 @@ class FedHEONN_coordinator:
             FedHEONN_coordinator.delete_context(self.ctx_str)
             self.ctx_str = None
 
+    def send_weights(self):
+        return self.W
+
+    def calculate_idx_feats(self, n_estimators, n_features, p_features, b_features):
+        assert n_estimators > 1
+        assert p_features   > 0.0
+        # No need to calculate index features if p_feat is 1.0 and no replacement is allowed (bootstrap)
+        if self.ensemble and not (p_features == 1.0 and b_features is False):
+            np.random.seed(42)
+            self.idx_feats = []
+            for i in range(n_estimators):
+                self.idx_feats.append(np.sort(np.random.choice(n_features, size=int(n_features * p_features), replace=b_features)))
+
+    def send_idx_feats(self):
+        return self.idx_feats
+
     def get_ctx_str(self):
         return self.ctx_str
 
@@ -517,7 +516,6 @@ class FedHEONN_coordinator:
     @staticmethod
     def generate_ensemble_params():
         return {'bagging'}
-
 
     @staticmethod
     def load_context(ctx_str):
