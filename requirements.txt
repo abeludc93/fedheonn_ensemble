@@ -26,3 +26,5 @@ pydantic==2.8.2
 psutil==5.9.2
 # UCI dataset repository
 ucimlrepo==0.0.7
+# Multipart
+python-multipart==0.0.9
