@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-import json
+
 # Standard libraries
 from base64 import b64encode, b64decode
-
+import json
 import requests
 # Third-party libraries
 import tenseal as ts
@@ -22,6 +22,7 @@ class Client:
 
     def ping(self) -> bool:
         url = self._base_url + "/ping"
+
         try:
             response = requests.get(url)
         except requests.exceptions.ConnectionError:
@@ -34,8 +35,9 @@ class Client:
 
         return True
 
-    def get_status(self) -> ServerStatus | None:
+    def get_status(self) -> ServerStatus:
         url = self._base_url + "/status"
+
         try:
             response = requests.get(url)
             status = ServerStatus(**response.json())
@@ -49,9 +51,10 @@ class Client:
 
         return status
 
-    def send_context(self, context_name: str, context: ts.Context) -> str | None:
+    def send_context(self, context_name: str, context: ts.Context) -> str:
         url = self._base_url + "/context"
 
+        # Serialize if not already
         if not isinstance(context, bytes):
             ser_ctx = context.serialize(save_public_key = True, save_secret_key = True,
                                         save_galois_keys = True, save_relin_keys = True)
@@ -68,9 +71,9 @@ class Client:
         ctx_result = response.json()
         return ctx_result['path']
 
-    def get_context(self, context_name: str) -> ts.Context | None:
+    def get_context(self, context_name: str) -> ts.Context:
         url = self._base_url + f"/context/{context_name}"
-        ctx = None
+
         try:
             response = requests.get(url)
             ctx = ts.context_from(response.content)
@@ -82,8 +85,9 @@ class Client:
 
         return ctx
 
-    def select_context(self, context_name: str) -> str | None:
+    def select_context(self, context_name: str) -> str:
         url = self._base_url + f"/context/{context_name}"
+
         try:
             response = requests.put(url)
         except requests.exceptions.ConnectionError:
@@ -94,8 +98,9 @@ class Client:
 
         return response.text
 
-    def delete_context(self, context_name: str) -> str | None:
+    def delete_context(self, context_name: str) -> str:
         url = self._base_url + f"/context/{context_name}"
+
         try:
             response = requests.delete(url)
         except requests.exceptions.ConnectionError:
@@ -106,8 +111,9 @@ class Client:
 
         return response.text
 
-    def select_dataset(self, dataset_name: str) -> str | None:
+    def select_dataset(self, dataset_name: str) -> str:
         url = self._base_url + f"/dataset/{dataset_name}"
+
         try:
             response = requests.put(url)
         except requests.exceptions.ConnectionError:
@@ -118,7 +124,7 @@ class Client:
 
         return response.text
 
-    def load_dataset(self):
+    def load_dataset(self) -> int:
         url = self._base_url + f"/dataset/load"
         try:
             response = requests.get(url)
@@ -128,10 +134,11 @@ class Client:
         if response.status_code != 200:
             handle_error_response(response)
 
-        return response.text
+        return int(response.text)
 
-    def fetch_dataset(self, size=0):
+    def fetch_dataset(self, size=0) -> list[np.ndarray]:
         url = self._base_url + f"/dataset/fetch/?size={size}"
+
         train_array = []
         try:
             response = requests.get(url)
@@ -144,3 +151,19 @@ class Client:
             handle_error_response(response)
 
         return train_array
+
+    def fetch_dataset_test(self) -> list[np.ndarray]:
+        url = self._base_url + "/dataset/fetch/test"
+
+        test_array = []
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                test_array = [np.asarray(elem) for elem in json.loads(response.json())]
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError
+
+        if response.status_code != 200:
+            handle_error_response(response)
+
+        return test_array

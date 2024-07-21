@@ -115,7 +115,12 @@ class FedHEONN_coordinator:
                 # Save tenSEAL context to temp file for later use in multiprocessing
                 ctx = None
                 if self.encrypted:
-                    self.ctx_str, ctx = FedHEONN_coordinator.save_context_from(M_list[0][0][0])
+                    if self.ctx_str is None:
+                        # Save and retrieve context
+                        self.ctx_str, ctx = FedHEONN_coordinator.save_context_from(M_list[0][0][0])
+                    else:
+                        # Already saved, no need to load from file, just retrieve it
+                        ctx = M_list[0][0][0].context()
 
                 # Prepare data for multiprocessing:
                 # Arrange list of estimators M&US[i] matrix's
@@ -151,7 +156,7 @@ class FedHEONN_coordinator:
                 log.debug(f"\t\tParallelized ({n_processes}) aggregation done in: {time.perf_counter() - t_ini:.3f} s")
 
                 # Delete temporary file containing the public tenSEAL context
-                if self.encrypted:
+                if self.encrypted and not self.ctx_persist:
                     FedHEONN_coordinator.delete_context(self.ctx_str)
                     self.ctx_str = None
 
