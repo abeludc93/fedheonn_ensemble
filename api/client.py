@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-
+import json
 # Standard libraries
 from base64 import b64encode, b64decode
+
+import requests
 # Third-party libraries
 import tenseal as ts
 import numpy as np
@@ -22,8 +24,8 @@ class Client:
         url = self._base_url + "/ping"
         try:
             response = requests.get(url)
-        except:
-            return False
+        except requests.exceptions.ConnectionError:
+            raise False
 
         if response.status_code != 200:
             return False
@@ -64,4 +66,81 @@ class Client:
             handle_error_response(response)
 
         ctx_result = response.json()
-        return ctx_result['id'] if 'id' in ctx_result else None
+        return ctx_result['path']
+
+    def get_context(self, context_name: str) -> ts.Context | None:
+        url = self._base_url + f"/context/{context_name}"
+        ctx = None
+        try:
+            response = requests.get(url)
+            ctx = ts.context_from(response.content)
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError
+
+        if response.status_code != 200:
+            handle_error_response(response)
+
+        return ctx
+
+    def select_context(self, context_name: str) -> str | None:
+        url = self._base_url + f"/context/{context_name}"
+        try:
+            response = requests.put(url)
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError
+
+        if response.status_code != 200:
+            handle_error_response(response)
+
+        return response.text
+
+    def delete_context(self, context_name: str) -> str | None:
+        url = self._base_url + f"/context/{context_name}"
+        try:
+            response = requests.delete(url)
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError
+
+        if response.status_code != 200:
+            handle_error_response(response)
+
+        return response.text
+
+    def select_dataset(self, dataset_name: str) -> str | None:
+        url = self._base_url + f"/dataset/{dataset_name}"
+        try:
+            response = requests.put(url)
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError
+
+        if response.status_code != 200:
+            handle_error_response(response)
+
+        return response.text
+
+    def load_dataset(self):
+        url = self._base_url + f"/dataset/load"
+        try:
+            response = requests.get(url)
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError
+
+        if response.status_code != 200:
+            handle_error_response(response)
+
+        return response.text
+
+    def fetch_dataset(self, size=0):
+        url = self._base_url + f"/dataset/fetch/?size={size}"
+        train_array = []
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                train_array = [np.asarray(elem) for elem in json.loads(response.json())]
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError
+
+        if response.status_code != 200:
+            handle_error_response(response)
+
+        return train_array
