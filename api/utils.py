@@ -69,6 +69,9 @@ def answer_418(msg: str) -> JSONResponse:
 def answer_404(msg: str) -> JSONResponse:
     return JSONResponse(status_code=404, content={"message": f"Resource not found. Server says '{msg}'"})
 
+def answer_200(msg: str) -> JSONResponse:
+    return JSONResponse(status_code=200, content={"message": f"Successful: '{msg}'"})
+
 def handle_error_response(response: requests.Response):
     """Handle the responses that aren't a success (200)"""
     if response.status_code == 404:

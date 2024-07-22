@@ -26,7 +26,7 @@ class Client:
         try:
             response = requests.get(url)
         except requests.exceptions.ConnectionError:
-            raise False
+            return False
 
         if response.status_code != 200:
             return False
@@ -167,3 +167,64 @@ class Client:
             handle_error_response(response)
 
         return test_array
+
+    def aggregate_partial(self,
+                          data
+                          #m_data:  list[np.ndarray | ts.CKKSVector] | list[list[np.ndarray | ts.CKKSVector]],
+                          #US_data: list[np.ndarray] | list[list[np.ndarray]]
+                          ) -> str:
+        url = self._base_url + "/aggregate/partial"
+
+        try:
+            #data = Client.serialize_client_data(m_data=m_data, US_data=US_data)
+            response = requests.post(url, json=data)
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError
+
+        if response.status_code != 200:
+            handle_error_response(response)
+
+        return response.json()["message"]
+
+
+    @staticmethod
+    def serialize_client_data(m_data:  list[np.ndarray | ts.CKKSVector] | list[list[np.ndarray | ts.CKKSVector]],
+                              US_data: list[np.ndarray] | list[list[np.ndarray]]) -> list:
+
+        bagging, encrypted = Client.check_bagging_encryption(m_data)
+        data = []
+        if bagging:
+            if encrypted:
+                # Bagging ensemble, encrypted M_e's
+                for i in range(len(m_data)):
+                    m_data[i] = [b64encode(arr.serialize()).decode('ascii') for arr in m_data[i]]
+                    US_data[i] = [arr.tolist() for arr in US_data[i]]
+            else:
+                # Bagging ensemble, plain data
+                for i in range(len(m_data)):
+                    m_data[i] = [arr.tolist() for arr in m_data[i]]
+                    US_data[i] = [arr.tolist() for arr in US_data[i]]
+        else:
+            if encrypted:
+                # No bagging, encrypted M's
+                m_data = [b64encode(arr.serialize()).decode('ascii') for arr in m_data]
+                US_data = [arr.tolist() for arr in US_data]
+            else:
+                # No bagging, plain data
+                m_data = [arr.tolist() for arr in m_data]
+                US_data = [arr.tolist() for arr in US_data]
+
+        data.append(m_data)
+        data.append(US_data)
+
+        return data
+
+    @staticmethod
+    def check_bagging_encryption(m_data):
+        bagging     = type(m_data) == list and type(m_data[0]) == list
+        if bagging:
+            encrypted = type(m_data[0][0]) == ts.CKKSVector
+        else:
+            encrypted = type(m_data[0]) == ts.CKKSVector
+
+        return bagging, encrypted
