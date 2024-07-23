@@ -201,6 +201,56 @@ class Client:
 
         return response.json()["message"]
 
+    def calculate_index_features(self, n_estimators: int, n_features: int, p_features:float, b_features:bool) -> str:
+        url = self._base_url + "/coordinator/index_features"
+
+        try:
+            data = {"n_estimators": n_estimators, "n_features": n_features, "p_features": p_features, "b_features": b_features}
+            response = requests.post(url, json=data)
+            if response.status_code != 200:
+                handle_error_response(response)
+        except Exception as err:
+            return f"calculate_index_features: {err}"
+        return response.json()["message"]
+
+    def get_index_features(self) -> list[int] | None:
+        url = self._base_url + "/coordinator/index_features"
+
+        arr = None
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                arr = response.json()
+        except Exception as err:
+            print(f"get_index_features: {err}")
+            return None
+
+        if response.status_code != 200:
+            handle_error_response(response)
+
+        return arr
+
+    def receive_weights(self) -> list[np.ndarray | str] | None:
+        url = self._base_url + "/coordinator/send_weights"
+
+        W = None
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                msg = response.json()
+                data = msg["data"]
+                if msg["message"] == "encrypted":
+                    W = [b64decode(arr) for arr in data]
+                else:
+                    W = [np.asarray(arr) for arr in data]
+            else:
+                handle_error_response(response)
+        except Exception as err:
+            print(f"send_weights: {err}")
+            return None
+
+        return W
+
     @staticmethod
     def serialize_client_data(m_data:  list[np.ndarray | ts.CKKSVector] | list[list[np.ndarray | ts.CKKSVector]],
                               US_data: list[np.ndarray] | list[list[np.ndarray]]) -> list:

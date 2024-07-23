@@ -243,6 +243,46 @@ def set_coordinator_parameters(coord_params: CoordinatorParams,
     except Exception as err:
         return answer_418(str(err))
 
+@app.post("/coordinator/index_features")
+def calculate_index_features(bagging_params: BaggingParams,
+                             sc: ServerCoordinator = Depends(singleton_coordinator)) -> JSONResponse:
+    try:
+        sc.coordinator.calculate_idx_feats(n_estimators=bagging_params.n_estimators,
+                                           n_features=bagging_params.n_features,
+                                           p_features=bagging_params.p_features,
+                                           b_features=bagging_params.b_features)
+        return answer_200('Coordinator picked random patches for data features! ')
+    except AssertionError as a_err:
+        return answer_404(f"Check for n_estimators > 1 and p_features > 0!: {a_err}")
+    except ValueError as v_err:
+        return answer_404(f"Could not execute random choice, reason: {v_err}")
+    except Exception as err:
+        return answer_418(str(err))
+
+@app.get("/coordinator/index_features")
+def send_index_features(sc: ServerCoordinator = Depends(singleton_coordinator)) -> str:
+    idx_feats = sc.coordinator.send_idx_feats()
+    if type(idx_feats) == np.ndarray:
+        return json.dumps(idx_feats.tolist())
+    elif type(idx_feats) == list:
+        return json.dumps(idx_feats)
+
+@app.get("coordinator/send_weights")
+def send_weights(sc: ServerCoordinator = Depends(singleton_coordinator)) -> JSONResponse:
+    try:
+        if sc.coordinator.encrypted and sc.coordinator.W:
+            # Encrypted W data (tenSEAL CKKS vectors)
+            data = json.dumps([b64encode(arr.serialize()).decode('ascii') for arr in sc.coordinator.W])
+            return answer_200_data(msg="encrypted", data=data)
+        elif not sc.coordinator.encrypted and sc.coordinator.W:
+            # Plain W data (optimal weights)
+            data = json.dumps([arr.tolist() for arr in sc.coordinator.W])
+            return answer_200_data(msg="plain", data=data)
+        else:
+            # No optimal weights yet
+            return answer_404("Empty optimal weights W, no data or not yet calculated!")
+    except Exception as err:
+        return answer_418(str(err))
 
 @app.post("/aggregate/partial")
 async def aggregate_partial(request: Request,

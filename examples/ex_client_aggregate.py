@@ -46,20 +46,28 @@ print(f"dataset load response: {length}")
 trainX, trainY = client.fetch_dataset(length//2)
 
 # FIT DATA
-bag = True
 enc = True
+bag = True
+n_estimators = 8
+p_samples = 1.0
+b_samples = True
+p_features = 1.0
+b_features = False
 
 print(f"\tTraining client...")
-ens_client = FedHEONN_classifier.generate_ensemble_params(n_estimators=8,
-                                                          p_samples=1.0, b_samples=True,
-                                                          p_features=1.0, b_features=False) if bag else {}
+ens_client = FedHEONN_classifier.generate_ensemble_params(n_estimators=n_estimators,
+                                                          p_samples=p_samples, b_samples=b_samples,
+                                                          p_features=p_features, b_features=b_features) if bag else {}
 fed_client = FedHEONN_classifier(f='logs', encrypted=enc, sparse=True, context=ctx, ensemble=ens_client)
-# DEBUG
-ens_coord = FedHEONN_coordinator.generate_ensemble_params() if bag else {}
-debug_coord = FedHEONN_coordinator(f='logs', encrypted=enc, sparse=True, ensemble=ens_coord)
+
 if bag:
-    debug_coord.calculate_idx_feats(8, 64, 1.0, False)
-    fed_client.set_idx_feats(debug_coord.send_idx_feats())
+    n_features = trainX.shape[1]
+    response = client.calculate_index_features(n_estimators=n_estimators, n_features=n_features,
+                                    p_features=p_features, b_features=b_features)
+    print(f"{response}")
+    idx_feats = client.get_index_features()
+    print(f"{type(idx_feats)}: {idx_feats}")
+    fed_client.set_idx_feats(idx_feats)
 
 # Fit client local data
 fed_client.fit(trainX, trainY)

@@ -26,6 +26,12 @@ class CoordinatorParams(BaseModel):
     parallel: bool
     ctx_str: str | None
 
+class BaggingParams(BaseModel):
+    n_estimators: int
+    n_features: int
+    p_features: float
+    b_features: bool
+
 class ServerStatus(BaseModel):
     contexts: list[str]
     datasets: list[str]
@@ -81,6 +87,9 @@ def answer_404(msg: str) -> JSONResponse:
 
 def answer_200(msg: str) -> JSONResponse:
     return JSONResponse(status_code=200, content={"message": f"Successful: '{msg}'"})
+
+def answer_200_data(msg: str, data: str) -> JSONResponse:
+    return JSONResponse(status_code=200, content={"message": msg, "data": data})
 
 def handle_error_response(response: requests.Response):
     """Handle the responses that aren't a success (200)"""
