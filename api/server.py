@@ -7,6 +7,7 @@ import os
 import json
 import asyncio
 from base64 import b64encode, b64decode
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 # Third-party libraries
@@ -85,6 +86,7 @@ class ServerCoordinator:
         self.coordinator = FedHEONN_coordinator(f_act, lam, enc, spr, ens, par)
         self.queue = asyncio.Queue()
         self.lock = asyncio.Lock()
+        self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='ServerCoord')
 
     async def aggregate_partial_data(self, data: list[list]):
         async with self.lock:
@@ -96,13 +98,18 @@ class ServerCoordinator:
             data = await self.queue.get()
             print(f"Processing data chunk from queue: {self.queue.qsize()}")
             assert len(data) == 2
-            async with self.lock:
-                self.coordinator.aggregate_partial(data[0], data[1])
-                self.coordinator.calculate_weights()
+            await asyncio.get_event_loop().run_in_executor(self.executor, self._aggregate_partial, [data[0]], [data[1]])
+            #async with self.lock:
+            #self.coordinator.aggregate_partial([data[0]], [data[1]])
+            #self.coordinator.calculate_weights()
                 # Calculate optimal weights on last piece of data
                 #if self.queue.empty():
                 #    self.coordinator.calculate_weights()
             self.queue.task_done()
+
+    def _aggregate_partial(self, M_grp, US_grp):
+        self.coordinator.aggregate_partial(M_grp, US_grp)
+        self.coordinator.calculate_weights()
 
 # Define singleton instance of coordinator
 def singleton_coordinator():

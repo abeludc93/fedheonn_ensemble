@@ -74,9 +74,9 @@ def main():
 if __name__ == "__main__":
     # ----MODEL HYPERPARAMETERS----
     # Number of clients
-    n_clients = 4
+    n_clients = 1
     # Number of clients per group
-    n_groups = 2
+    n_groups = 1
     # Randomize number of clients per group in range (n_groups/2, groups*2)
     rnd = False
     # Encryption

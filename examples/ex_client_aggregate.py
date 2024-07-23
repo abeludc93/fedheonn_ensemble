@@ -31,7 +31,7 @@ response = client.load_dataset()
 length = int(response)
 print(f"dataset load response: {length}")
 
-trainX, trainY = client.fetch_dataset(length)
+trainX, trainY = client.fetch_dataset(length//2)
 
 # FIT DATA
 bag = True
@@ -56,10 +56,11 @@ M_c, US_c = fed_client.get_param()
 # Aggregate partial data
 #response = client.aggregate_partial(m_data=M_c, US_data=US_c)
 data = Client.serialize_client_data(m_data=M_c, US_data=US_c)
-response = client.aggregate_partial(data)
-#for i in range(20):
-#    response = client.aggregate_partial(data)
-#    print(f"\tAGGREGATE PARTIAL ({i+1}):\n{response}")
+#response = client.aggregate_partial(data)
+#print(response)
+for i in range(3):
+    response = client.aggregate_partial(data)
+    print(f"\tAGGREGATE PARTIAL ({i+1}):\n{response}")
 
 """
 threads = list()
