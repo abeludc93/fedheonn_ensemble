@@ -115,7 +115,12 @@ class FedHEONN_coordinator:
                 # Save tenSEAL context to temp file for later use in multiprocessing
                 ctx = None
                 if self.encrypted:
-                    self.ctx_str, ctx = FedHEONN_coordinator.save_context_from(M_list[0][0][0])
+                    if self.ctx_str is None:
+                        # Save and retrieve context
+                        self.ctx_str, ctx = FedHEONN_coordinator.save_context_from(M_list[0][0][0])
+                    else:
+                        # Already saved, no need to load from file, just retrieve it
+                        ctx = M_list[0][0][0].context()
 
                 # Prepare data for multiprocessing:
                 # Arrange list of estimators M&US[i] matrix's
@@ -151,7 +156,7 @@ class FedHEONN_coordinator:
                 log.debug(f"\t\tParallelized ({n_processes}) aggregation done in: {time.perf_counter() - t_ini:.3f} s")
 
                 # Delete temporary file containing the public tenSEAL context
-                if self.encrypted:
+                if self.encrypted and not self.ctx_persist:
                     FedHEONN_coordinator.delete_context(self.ctx_str)
                     self.ctx_str = None
 
@@ -339,7 +344,6 @@ class FedHEONN_coordinator:
         # Return data (only for multiprocessing purposes, because pool processes can't modify the original matrix's)
         return M_glb, U_glb, S_glb
 
-
     @time_func
     def calculate_weights(self):
         # Calculate weights for the current coordinators M_glb, U_glb and S_glb data
@@ -512,6 +516,17 @@ class FedHEONN_coordinator:
 
     def set_ctx_str(self, ctx_str):
         self.ctx_str = ctx_str
+
+    def set_activation_functions(self, f:str):
+        self.f, self.f_inv, self.fderiv = _load_act_fn(f)
+
+    def get_parameters(self):
+        return {"f": self.f.__name__,
+                "lam": self.lam,
+                "encrypted": self.encrypted,
+                "sparse": self.sparse,
+                "bagging": self.ensemble is not None and "bagging" in self.ensemble,
+                "parallel": self.parallel, "ctx_str": self.ctx_str}
 
     @staticmethod
     def generate_ensemble_params():
