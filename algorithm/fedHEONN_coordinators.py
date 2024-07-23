@@ -344,7 +344,6 @@ class FedHEONN_coordinator:
         # Return data (only for multiprocessing purposes, because pool processes can't modify the original matrix's)
         return M_glb, U_glb, S_glb
 
-
     @time_func
     def calculate_weights(self):
         # Calculate weights for the current coordinators M_glb, U_glb and S_glb data
@@ -517,6 +516,17 @@ class FedHEONN_coordinator:
 
     def set_ctx_str(self, ctx_str):
         self.ctx_str = ctx_str
+
+    def set_activation_functions(self, f:str):
+        self.f, self.f_inv, self.fderiv = _load_act_fn(f)
+
+    def get_parameters(self):
+        return {"f": self.f.__name__,
+                "lam": self.lam,
+                "encrypted": self.encrypted,
+                "sparse": self.sparse,
+                "bagging": self.ensemble is not None and "bagging" in self.ensemble,
+                "parallel": self.parallel, "ctx_str": self.ctx_str}
 
     @staticmethod
     def generate_ensemble_params():

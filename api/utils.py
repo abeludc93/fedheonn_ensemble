@@ -17,12 +17,22 @@ class CKKSVector(BaseModel):
 class NumpyArray(BaseModel):
     nd_array: str
 
+class CoordinatorParams(BaseModel):
+    f: str
+    lam: float
+    encrypted: bool
+    sparse: bool
+    bagging: bool
+    parallel: bool
+    ctx_str: str | None
+
 class ServerStatus(BaseModel):
     contexts: list[str]
     datasets: list[str]
     selected_context: str | None
     selected_dataset: str | None
     status: str
+    coord_params: CoordinatorParams | None
 
 ### CUSTOM EXCEPTIONS ###
 class Answer418(Exception):

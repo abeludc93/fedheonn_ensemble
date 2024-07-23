@@ -20,13 +20,6 @@ from api.utils import *
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from examples.utils import load_skin_dataset, load_mini_boone, load_dry_bean, load_carbon_nanotube, load_mnist_digits
 
-# Coordinator hyperparameters
-f_act = 'logs'
-lam = 0.01
-enc = True
-spr = True
-ens = {'bagging'}
-par = False
 # Server parameters
 host = '0.0.0.0'
 port = 8000
@@ -83,7 +76,7 @@ app = FastAPI()
 
 class ServerCoordinator:
     def __init__(self):
-        self.coordinator = FedHEONN_coordinator(f_act, lam, enc, spr, ens, par)
+        self.coordinator = FedHEONN_coordinator()
         self.queue = asyncio.Queue()
         self.lock = asyncio.Lock()
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='ServerCoord')
@@ -128,13 +121,14 @@ def ping() -> dict[str, str]:
     return {"message": "pong"}
 
 @app.get("/status")
-def status() -> ServerStatus:
+def status(sc: ServerCoordinator = Depends(singleton_coordinator)) -> ServerStatus:
     """Used to check current server status"""
     test_status = {
         "contexts": list(CONTEXTS.keys()),
         "selected_context": CURRENT_CONTEXT[0],
         "datasets": list(DATASETS.keys()),
         "selected_dataset": CURRENT_DATASET,
+        "coord_params": CoordinatorParams(**sc.coordinator.get_parameters()),
         "status": "WAITING CLIENTS",
     }
     return ServerStatus(**test_status)
@@ -233,6 +227,22 @@ def fetch_dataset_test(dataset_loader: DataSetLoader = Depends(singleton_dataset
     else:
         fragment = dataset_loader.fetch_test()
         return json.dumps([frag.tolist() for frag in fragment])
+
+@app.put("/coordinator/parameters")
+def set_coordinator_parameters(coord_params: CoordinatorParams,
+                               sc: ServerCoordinator = Depends(singleton_coordinator)) -> JSONResponse:
+    try:
+        sc.coordinator.set_activation_functions(coord_params.f)
+        sc.coordinator.lam = coord_params.lam
+        sc.coordinator.sparse = coord_params.sparse
+        sc.coordinator.encrypted = coord_params.encrypted
+        sc.coordinator.ensemble = FedHEONN_coordinator.generate_ensemble_params() if coord_params.bagging else None
+        sc.coordinator.parallel = coord_params.parallel
+        sc.coordinator.set_ctx_str(coord_params.ctx_str)
+        return answer_200('Updated coordinator parameters!')
+    except Exception as err:
+        return answer_418(str(err))
+
 
 @app.post("/aggregate/partial")
 async def aggregate_partial(request: Request,

@@ -15,14 +15,26 @@ hostname = "localhost"
 port = 8000
 client = Client(hostname, port)
 
+# Coordinator hyperparameters
+f_act = 'logs'
+lam = 0.01
+enc = True
+spr = True
+bag = True
+par = False
+
 
 print(f"\tPING:\nAPI is {'UP' if client.ping() else 'DOWN'}")
 print(f"\tSTATUS:\n{client.get_status()}")
+# HYPERPARAMS
+response = client.update_coordinator_parameters(f_act=f_act, lam=lam, spr=spr, enc=enc, par=par, bag=bag, ctx_str=None)
+print(f"{response}\n\tSTATUS:\n{client.get_status()}")
+
+# CONTEXT
 client.send_context(context_name="test_ts", context=ctx)
 print(f"\tSTATUS:\n{client.get_status()}")
 client.select_context("test_ts")
 print(f"\tSTATUS:\n{client.get_status()}")
-
 
 # DATASET
 response = client.select_dataset("mnist")
@@ -30,7 +42,7 @@ print(f"dataset select response: {response}")
 response = client.load_dataset()
 length = int(response)
 print(f"dataset load response: {length}")
-
+# FETCH DATA
 trainX, trainY = client.fetch_dataset(length//2)
 
 # FIT DATA

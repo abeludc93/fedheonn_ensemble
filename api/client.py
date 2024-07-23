@@ -186,6 +186,20 @@ class Client:
 
         return response.json()["message"]
 
+    def update_coordinator_parameters(self, f_act: str='logs', lam: float=0, spr: bool=True, enc: bool=False,
+                                      bag: bool=False, par: bool=False, ctx_str: str=None):
+        url = self._base_url + "/coordinator/parameters"
+
+        try:
+            data = {"f": f_act, "lam": lam, "sparse": spr, "encrypted": enc, "bagging": bag, "parallel": par, "ctx_str": ctx_str}
+            response = requests.put(url, json=data)
+        except requests.exceptions.ConnectionError:
+            raise ConnectionError
+
+        if response.status_code != 200:
+            handle_error_response(response)
+
+        return response.json()["message"]
 
     @staticmethod
     def serialize_client_data(m_data:  list[np.ndarray | ts.CKKSVector] | list[list[np.ndarray | ts.CKKSVector]],
