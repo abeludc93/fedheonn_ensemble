@@ -8,8 +8,6 @@ import json
 import asyncio
 from base64 import b64encode, b64decode
 from concurrent.futures import ThreadPoolExecutor
-
-import numpy as np
 # Third-party libraries
 import tenseal as ts
 import uvicorn
@@ -82,16 +80,17 @@ class ServerCoordinator:
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='ServerCoord')
 
     async def aggregate_partial_data(self, data: list[list]):
-        async with self.lock:
-            # Partial M & US lists
-            await self.queue.put(data)
+        # Partial M & US lists
+        await self.queue.put(data)
 
     async def process_aggregate_partial(self):
         while True:
             data = await self.queue.get()
             print(f"Processing data chunk from queue: {self.queue.qsize()}")
             assert len(data) == 2
-            asyncio.get_event_loop().run_in_executor(self.executor, self._aggregate_partial, [data[0]], [data[1]])
+            asyncio.get_event_loop().run_in_executor(self.executor,
+                                                     self._aggregate_partial,
+                                                     [data[0]], [data[1]])
             #await asyncio.get_event_loop().run_in_executor(self.executor, self._aggregate_partial, [data[0]], [data[1]])
             #async with self.lock:
             #self.coordinator.aggregate_partial([data[0]], [data[1]])

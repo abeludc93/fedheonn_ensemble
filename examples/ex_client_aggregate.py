@@ -93,6 +93,7 @@ for i in range(2):
     print(f"\tAGGREGATE PARTIAL ({i+1}):\n{response}")
 
 # Receive weights
+input()
 response = client.receive_weights()
 print(f"WEIGHTS: {len(response)}")
 fed_client.set_weights(W=response)
