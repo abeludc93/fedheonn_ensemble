@@ -88,7 +88,7 @@ M_c, US_c = fed_client.get_param()
 data = Client.serialize_client_data(m_data=M_c, US_data=US_c)
 #response = client.aggregate_partial(data)
 #print(response)
-for i in range(2):
+for i in range(3):
     response = client.aggregate_partial(data)
     print(f"\tAGGREGATE PARTIAL ({i+1}):\n{response}")
 

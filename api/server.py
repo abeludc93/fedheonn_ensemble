@@ -76,7 +76,7 @@ class ServerCoordinator:
     def __init__(self):
         self.coordinator = FedHEONN_coordinator()
         self.queue = asyncio.Queue()
-        self.lock = asyncio.Lock()
+        #self.lock = asyncio.Lock()
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='ServerCoord')
 
     async def aggregate_partial_data(self, data: list[list]):
@@ -85,19 +85,16 @@ class ServerCoordinator:
 
     async def process_aggregate_partial(self):
         while True:
+
+            M_group, US_group = [], []
             data = await self.queue.get()
-            print(f"Processing data chunk from queue: {self.queue.qsize()}")
+            print(f"Processing data chunk from queue")
             assert len(data) == 2
-            asyncio.get_event_loop().run_in_executor(self.executor,
-                                                     self._aggregate_partial,
-                                                     [data[0]], [data[1]])
-            #await asyncio.get_event_loop().run_in_executor(self.executor, self._aggregate_partial, [data[0]], [data[1]])
-            #async with self.lock:
-            #self.coordinator.aggregate_partial([data[0]], [data[1]])
-            #self.coordinator.calculate_weights()
-                # Calculate optimal weights on last piece of data
-                #if self.queue.empty():
-                #    self.coordinator.calculate_weights()
+            M_group.append(data[0])
+            US_group.append(data[1])
+
+            asyncio.get_event_loop().run_in_executor(self.executor, self._aggregate_partial,M_group, US_group)
+
             self.queue.task_done()
 
     def _aggregate_partial(self, M_grp, US_grp):
@@ -303,8 +300,8 @@ async def aggregate_partial(request: Request,
         M_c, US_c = deserialize_data(data[0], data[1], CURRENT_CONTEXT[1])
         # Aggregate
 
-        #await server_coordinator.aggregate_partial_data([M_c, US_c])
-        asyncio.create_task(server_coordinator.aggregate_partial_data([M_c, US_c]))
+        await server_coordinator.aggregate_partial_data([M_c, US_c])
+        #await asyncio.create_task(server_coordinator.aggregate_partial_data([M_c, US_c]))
 
         return answer_200(f"Data enqueued!")
     except Exception as e:
@@ -312,6 +309,7 @@ async def aggregate_partial(request: Request,
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(singleton_coordinator().process_aggregate_partial())
+
 
 def deserialize_data(M, US, ctx):
 
