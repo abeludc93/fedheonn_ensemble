@@ -506,7 +506,8 @@ class FedHEONN_coordinator:
             np.random.seed(42)
             self.idx_feats = []
             for i in range(n_estimators):
-                self.idx_feats.append(np.sort(np.random.choice(n_features, size=int(n_features * p_features), replace=b_features)))
+                idx_lst = np.sort(np.random.choice(n_features, size=int(n_features * p_features), replace=b_features)).tolist()
+                self.idx_feats.append(idx_lst)
 
     def send_idx_feats(self):
         return self.idx_feats

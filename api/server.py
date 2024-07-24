@@ -262,12 +262,9 @@ def calculate_index_features(bagging_params: BaggingParams,
 @app.get("/coordinator/index_features")
 def send_index_features(sc: ServerCoordinator = Depends(singleton_coordinator)) -> str:
     idx_feats = sc.coordinator.send_idx_feats()
-    if type(idx_feats) == np.ndarray:
-        return json.dumps(idx_feats.tolist())
-    elif type(idx_feats) == list:
-        return json.dumps(idx_feats)
+    return json.dumps(idx_feats)
 
-@app.get("coordinator/send_weights")
+@app.get("/coordinator/send_weights")
 def send_weights(sc: ServerCoordinator = Depends(singleton_coordinator)) -> JSONResponse:
     try:
         if sc.coordinator.encrypted and sc.coordinator.W:

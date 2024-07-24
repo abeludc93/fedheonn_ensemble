@@ -220,7 +220,7 @@ class Client:
         try:
             response = requests.get(url)
             if response.status_code == 200:
-                arr = response.json()
+                arr = json.loads(response.json())
         except Exception as err:
             print(f"get_index_features: {err}")
             return None
@@ -230,7 +230,7 @@ class Client:
 
         return arr
 
-    def receive_weights(self) -> list[np.ndarray | str] | None:
+    def receive_weights(self) -> list[np.ndarray | bytes] | None:
         url = self._base_url + "/coordinator/send_weights"
 
         W = None
@@ -238,7 +238,7 @@ class Client:
             response = requests.get(url)
             if response.status_code == 200:
                 msg = response.json()
-                data = msg["data"]
+                data = json.loads(msg["data"])
                 if msg["message"] == "encrypted":
                     W = [b64decode(arr) for arr in data]
                 else:

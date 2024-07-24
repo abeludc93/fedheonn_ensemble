@@ -51,8 +51,8 @@ bag = True
 n_estimators = 8
 p_samples = 1.0
 b_samples = True
-p_features = 1.0
-b_features = False
+p_features = 0.7
+b_features = True
 
 print(f"\tTraining client...")
 ens_client = FedHEONN_classifier.generate_ensemble_params(n_estimators=n_estimators,
@@ -68,6 +68,10 @@ if bag:
     idx_feats = client.get_index_features()
     print(f"{type(idx_feats)}: {idx_feats}")
     fed_client.set_idx_feats(idx_feats)
+
+# TODO: probar el send_weights
+response = client.receive_weights()
+
 
 # Fit client local data
 fed_client.fit(trainX, trainY)
