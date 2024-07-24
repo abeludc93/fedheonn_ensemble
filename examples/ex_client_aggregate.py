@@ -3,7 +3,6 @@
 import threading
 
 from algorithm.fedHEONN_clients import FedHEONN_classifier
-from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from api.client import Client
 import tenseal as ts
 
@@ -43,7 +42,7 @@ response = client.load_dataset()
 length = int(response)
 print(f"dataset load response: {length}")
 # FETCH DATA
-trainX, trainY = client.fetch_dataset(length//2)
+trainX, trainY = client.fetch_dataset(length//6)
 
 # FIT DATA
 enc = True
@@ -51,8 +50,8 @@ bag = True
 n_estimators = 8
 p_samples = 1.0
 b_samples = True
-p_features = 0.7
-b_features = True
+p_features = 1.0
+b_features = False
 
 print(f"\tTraining client...")
 ens_client = FedHEONN_classifier.generate_ensemble_params(n_estimators=n_estimators,
@@ -69,9 +68,16 @@ if bag:
     print(f"{type(idx_feats)}: {idx_feats}")
     fed_client.set_idx_feats(idx_feats)
 
-# TODO: probar el send_weights
+# DEBUG WEIGHTS
+"""
 response = client.receive_weights()
+print(f"{response}")
+fed_client.set_weights(response)
 
+response = client.receive_weights()
+print(f"{response}")
+fed_client.set_weights(response)
+"""
 
 # Fit client local data
 fed_client.fit(trainX, trainY)
@@ -82,9 +88,14 @@ M_c, US_c = fed_client.get_param()
 data = Client.serialize_client_data(m_data=M_c, US_data=US_c)
 #response = client.aggregate_partial(data)
 #print(response)
-for i in range(3):
+for i in range(2):
     response = client.aggregate_partial(data)
     print(f"\tAGGREGATE PARTIAL ({i+1}):\n{response}")
+
+# Receive weights
+response = client.receive_weights()
+print(f"WEIGHTS: {len(response)}")
+fed_client.set_weights(W=response)
 
 """
 threads = list()

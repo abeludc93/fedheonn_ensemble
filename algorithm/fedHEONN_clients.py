@@ -192,8 +192,28 @@ class FedHEONN_client:
     def get_param(self):
         return self.M, self.US
 
-    def set_weights(self, W):
-        self.W = W
+    def set_weights(self, W: list[np.ndarray | bytes] | list[list[np.ndarray | bytes]]):
+        if self.encrypted:
+            # Deserialize data and build back CKKS vectors
+            if self.ensemble:
+                # List of estimators within lists of vector's byte data (for each output)
+                self.W = []
+                for i in range(len(W)):
+                    self.W.append([ts.ckks_vector_from(self.context, arr) for arr in W[i]])
+            else:
+                # List of vector's byte data (for each output)
+                self.W = [ts.ckks_vector_from(self.context, arr) for arr in W]
+        else:
+            # Assign list of optimal weights
+            self.W = W
+
+    def set_weights_serialized(self, W_serialized: list[bytes] | list[list[bytes]]):
+        if self.ensemble:
+            self.W = []
+            for i in range(len(W_serialized)):
+                self.W.append([ts.ckks_vector_from(self.context, arr) for arr in W_serialized[i]])
+        else:
+            self.W = [ts.ckks_vector_from(self.context, arr) for arr in W_serialized]
 
     def set_context(self, context):
         self.context = context

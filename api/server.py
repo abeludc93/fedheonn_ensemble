@@ -91,7 +91,8 @@ class ServerCoordinator:
             data = await self.queue.get()
             print(f"Processing data chunk from queue: {self.queue.qsize()}")
             assert len(data) == 2
-            await asyncio.get_event_loop().run_in_executor(self.executor, self._aggregate_partial, [data[0]], [data[1]])
+            asyncio.get_event_loop().run_in_executor(self.executor, self._aggregate_partial, [data[0]], [data[1]])
+            #await asyncio.get_event_loop().run_in_executor(self.executor, self._aggregate_partial, [data[0]], [data[1]])
             #async with self.lock:
             #self.coordinator.aggregate_partial([data[0]], [data[1]])
             #self.coordinator.calculate_weights()
@@ -267,14 +268,22 @@ def send_index_features(sc: ServerCoordinator = Depends(singleton_coordinator)) 
 @app.get("/coordinator/send_weights")
 def send_weights(sc: ServerCoordinator = Depends(singleton_coordinator)) -> JSONResponse:
     try:
+        W_length = len(sc.coordinator.W)
         if sc.coordinator.encrypted and sc.coordinator.W:
             # Encrypted W data (tenSEAL CKKS vectors)
-            data = json.dumps([b64encode(arr.serialize()).decode('ascii') for arr in sc.coordinator.W])
-            return answer_200_data(msg="encrypted", data=data)
+            if type(sc.coordinator.W) == list and type(sc.coordinator.W[0]) == list:
+                data = []
+                for i in range(W_length):
+                    data.append([b64encode(arr.serialize()).decode('ascii') for arr in sc.coordinator.W[i]])
+            else:
+                data = [b64encode(arr.serialize()).decode('ascii') for arr in sc.coordinator.W]
+            return answer_200_data(msg="encrypted", data=json.dumps(data))
         elif not sc.coordinator.encrypted and sc.coordinator.W:
             # Plain W data (optimal weights)
-            data = json.dumps([arr.tolist() for arr in sc.coordinator.W])
-            return answer_200_data(msg="plain", data=data)
+            data = []
+            for i in range(W_length):
+                data.append([arr.tolist() for arr in sc.coordinator.W[i]])
+            return answer_200_data(msg="plain", data=json.dumps(data))
         else:
             # No optimal weights yet
             return answer_404("Empty optimal weights W, no data or not yet calculated!")

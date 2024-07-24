@@ -233,16 +233,24 @@ class Client:
     def receive_weights(self) -> list[np.ndarray | bytes] | None:
         url = self._base_url + "/coordinator/send_weights"
 
-        W = None
+        W = []
         try:
             response = requests.get(url)
             if response.status_code == 200:
                 msg = response.json()
                 data = json.loads(msg["data"])
                 if msg["message"] == "encrypted":
-                    W = [b64decode(arr) for arr in data]
+                    if type(data) == list and type(data[0]) == list:
+                        for i in range(len(data)):
+                            W.append([b64decode(arr) for arr in data[i]])
+                    else:
+                        W = [b64decode(arr) for arr in data]
                 else:
-                    W = [np.asarray(arr) for arr in data]
+                    if type(data) == list and type(data[0]) == list and type(data[0][0]) == list:
+                        for i in range(len(data)):
+                            W.append([np.asarray(arr) for arr in data[i]])
+                    else:
+                        W = [np.asarray(arr) for arr in data]
             else:
                 handle_error_response(response)
         except Exception as err:
