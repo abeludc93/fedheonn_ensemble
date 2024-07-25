@@ -2,21 +2,17 @@
 # -*- coding: UTF-8 -*-
 
 # Standard libraries
-from base64 import b64encode, b64decode
-import json
 import requests
+import json
 # Third-party libraries
 import tenseal as ts
 import numpy as np
 from pydantic import ValidationError
-
 # Application modules
-from api.utils import *
-
+from api.utils import ServerStatus, handle_error_response, ParseError, ServerError, deserialize_coordinator_weights
 
 class Client:
     """Client to communicate with server for aggregation and evaluation"""
-
     def __init__(self, hostname: str, port: int):
         self._base_url = f"http://{hostname}:{port}"
 
@@ -41,17 +37,18 @@ class Client:
         try:
             response = requests.get(url)
             status = ServerStatus(**response.json())
-        except requests.exceptions.ConnectionError:
-            raise ConnectionError
-        except ValidationError:
-            raise ParseError
+        except requests.exceptions.ConnectionError as c_err:
+            raise ServerError(str(c_err))
+        except ValidationError as v_err:
+            raise ParseError(str(v_err))
 
         if response.status_code != 200:
             handle_error_response(response)
 
         return status
 
-    def send_context(self, context_name: str, context: ts.Context) -> str:
+    """ CONTEXT METHODS """
+    def send_context(self, context_name: str, context: ts.Context | bytes) -> str:
         url = self._base_url + "/context"
 
         # Serialize if not already
@@ -60,10 +57,12 @@ class Client:
                                         save_galois_keys = True, save_relin_keys = True)
         else:
             ser_ctx = context
+
+        # Upload context
         try:
             response = requests.post(url, files={'file': (context_name, ser_ctx)})
-        except requests.exceptions.ConnectionError:
-            raise ConnectionError
+        except requests.exceptions.ConnectionError as c_err:
+            raise ServerError(str(c_err))
 
         if response.status_code != 200:
             handle_error_response(response)
@@ -74,11 +73,12 @@ class Client:
     def get_context(self, context_name: str) -> ts.Context:
         url = self._base_url + f"/context/{context_name}"
 
+        # Download context
         try:
             response = requests.get(url)
             ctx = ts.context_from(response.content)
-        except requests.exceptions.ConnectionError:
-            raise ConnectionError
+        except requests.exceptions.ConnectionError as c_err:
+            raise ServerError(str(c_err))
 
         if response.status_code != 200:
             handle_error_response(response)
@@ -88,10 +88,11 @@ class Client:
     def select_context(self, context_name: str) -> str:
         url = self._base_url + f"/context/{context_name}"
 
+        # Select context on server-side
         try:
             response = requests.put(url)
-        except requests.exceptions.ConnectionError:
-            raise ConnectionError
+        except requests.exceptions.ConnectionError as c_err:
+            raise ServerError(str(c_err))
 
         if response.status_code != 200:
             handle_error_response(response)
@@ -101,23 +102,26 @@ class Client:
     def delete_context(self, context_name: str) -> str:
         url = self._base_url + f"/context/{context_name}"
 
+        # Delete tenSEAL context temp file
         try:
             response = requests.delete(url)
-        except requests.exceptions.ConnectionError:
-            raise ConnectionError
+        except requests.exceptions.ConnectionError as c_err:
+            raise ServerError(str(c_err))
 
         if response.status_code != 200:
             handle_error_response(response)
 
         return response.text
 
+    """ DATASET METHODS """
     def select_dataset(self, dataset_name: str) -> str:
         url = self._base_url + f"/dataset/{dataset_name}"
 
+        # Select dataset on server-side
         try:
             response = requests.put(url)
-        except requests.exceptions.ConnectionError:
-            raise ConnectionError
+        except requests.exceptions.ConnectionError as c_err:
+            raise ServerError(str(c_err))
 
         if response.status_code != 200:
             handle_error_response(response)
@@ -126,6 +130,8 @@ class Client:
 
     def load_dataset(self) -> int:
         url = self._base_url + f"/dataset/load"
+
+        # Load and split selected server-side dataset
         try:
             response = requests.get(url)
         except requests.exceptions.ConnectionError:
@@ -139,13 +145,14 @@ class Client:
     def fetch_dataset(self, size=0) -> list[np.ndarray]:
         url = self._base_url + f"/dataset/fetch/?size={size}"
 
+        # Fetch train dataset bit of given size
         train_array = []
         try:
             response = requests.get(url)
             if response.status_code == 200:
                 train_array = [np.asarray(elem) for elem in json.loads(response.json())]
-        except requests.exceptions.ConnectionError:
-            raise ConnectionError
+        except requests.exceptions.ConnectionError as c_err:
+            raise ServerError(str(c_err))
 
         if response.status_code != 200:
             handle_error_response(response)
@@ -155,31 +162,29 @@ class Client:
     def fetch_dataset_test(self) -> list[np.ndarray]:
         url = self._base_url + "/dataset/fetch/test"
 
+        # Fetch test dataset
         test_array = []
         try:
             response = requests.get(url)
             if response.status_code == 200:
                 test_array = [np.asarray(elem) for elem in json.loads(response.json())]
-        except requests.exceptions.ConnectionError:
-            raise ConnectionError
+        except requests.exceptions.ConnectionError as c_err:
+            raise ServerError(str(c_err))
 
         if response.status_code != 200:
             handle_error_response(response)
 
         return test_array
 
-    def aggregate_partial(self,
-                          data
-                          #m_data:  list[np.ndarray | ts.CKKSVector] | list[list[np.ndarray | ts.CKKSVector]],
-                          #US_data: list[np.ndarray] | list[list[np.ndarray]]
-                          ) -> str:
+    """ FEDHEONN METHODS"""
+    def aggregate_partial(self, data: list) -> str:
         url = self._base_url + "/aggregate/partial"
 
+        # Send fitted data (ready for serialization) to the server for partial aggregation
         try:
-            #data = Client.serialize_client_data(m_data=m_data, US_data=US_data)
             response = requests.post(url, json=data)
-        except requests.exceptions.ConnectionError:
-            raise ConnectionError
+        except requests.exceptions.ConnectionError as c_err:
+            raise ServerError(str(c_err))
 
         if response.status_code != 200:
             handle_error_response(response)
@@ -190,11 +195,13 @@ class Client:
                                       bag: bool=False, par: bool=False, ctx_str: str=None):
         url = self._base_url + "/coordinator/parameters"
 
+        # Updates FedHEONN coordinator with the given set of parameters below
         try:
-            data = {"f": f_act, "lam": lam, "sparse": spr, "encrypted": enc, "bagging": bag, "parallel": par, "ctx_str": ctx_str}
+            data = {"f": f_act, "lam": lam, "sparse": spr, "encrypted": enc,
+                    "bagging": bag, "parallel": par, "ctx_str": ctx_str}
             response = requests.put(url, json=data)
-        except requests.exceptions.ConnectionError:
-            raise ConnectionError
+        except requests.exceptions.ConnectionError as c_err:
+            raise ServerError(str(c_err))
 
         if response.status_code != 200:
             handle_error_response(response)
@@ -204,25 +211,28 @@ class Client:
     def calculate_index_features(self, n_estimators: int, n_features: int, p_features:float, b_features:bool) -> str:
         url = self._base_url + "/coordinator/index_features"
 
+        # Sends a signal to the FedHEONN coordinator to calculate a random set of features
         try:
             data = {"n_estimators": n_estimators, "n_features": n_features, "p_features": p_features, "b_features": b_features}
             response = requests.post(url, json=data)
             if response.status_code != 200:
                 handle_error_response(response)
         except Exception as err:
-            return f"calculate_index_features: {err}"
+            return f"CLIENT [calculate_index_features] error: {err}"
+
         return response.json()["message"]
 
     def get_index_features(self) -> list[int] | None:
         url = self._base_url + "/coordinator/index_features"
 
+        # Receive the random features calculated from the FedHEONN coordinator (server-side)
         arr = None
         try:
             response = requests.get(url)
             if response.status_code == 200:
                 arr = json.loads(response.json())
         except Exception as err:
-            print(f"get_index_features: {err}")
+            print(f"CLIENT [get_index_features] error: {err}")
             return None
 
         if response.status_code != 200:
@@ -233,70 +243,19 @@ class Client:
     def receive_weights(self) -> list[np.ndarray | bytes] | None:
         url = self._base_url + "/coordinator/send_weights"
 
-        W = []
+        # Receive weights calculated from the FedHEONN coordinator (server-side) and deserializes them (if necessary)
+        W = None
         try:
             response = requests.get(url)
             if response.status_code == 200:
                 msg = response.json()
                 data = json.loads(msg["data"])
-                if msg["message"] == "encrypted":
-                    if type(data) == list and type(data[0]) == list:
-                        for i in range(len(data)):
-                            W.append([b64decode(arr) for arr in data[i]])
-                    else:
-                        W = [b64decode(arr) for arr in data]
-                else:
-                    if type(data) == list and type(data[0]) == list and type(data[0][0]) == list:
-                        for i in range(len(data)):
-                            W.append([np.asarray(arr) for arr in data[i]])
-                    else:
-                        W = [np.asarray(arr) for arr in data]
+                encrypted = msg["message"] == "encrypted"
+                W = deserialize_coordinator_weights(data, encrypted)
             else:
                 handle_error_response(response)
         except Exception as err:
-            print(f"send_weights: {err}")
+            print(f"CLIENT [send_weights] error: {err}")
             return None
 
         return W
-
-    @staticmethod
-    def serialize_client_data(m_data:  list[np.ndarray | ts.CKKSVector] | list[list[np.ndarray | ts.CKKSVector]],
-                              US_data: list[np.ndarray] | list[list[np.ndarray]]) -> list:
-
-        bagging, encrypted = Client.check_bagging_encryption(m_data)
-        data = []
-        if bagging:
-            if encrypted:
-                # Bagging ensemble, encrypted M_e's
-                for i in range(len(m_data)):
-                    m_data[i] = [b64encode(arr.serialize()).decode('ascii') for arr in m_data[i]]
-                    US_data[i] = [arr.tolist() for arr in US_data[i]]
-            else:
-                # Bagging ensemble, plain data
-                for i in range(len(m_data)):
-                    m_data[i] = [arr.tolist() for arr in m_data[i]]
-                    US_data[i] = [arr.tolist() for arr in US_data[i]]
-        else:
-            if encrypted:
-                # No bagging, encrypted M's
-                m_data = [b64encode(arr.serialize()).decode('ascii') for arr in m_data]
-                US_data = [arr.tolist() for arr in US_data]
-            else:
-                # No bagging, plain data
-                m_data = [arr.tolist() for arr in m_data]
-                US_data = [arr.tolist() for arr in US_data]
-
-        data.append(m_data)
-        data.append(US_data)
-
-        return data
-
-    @staticmethod
-    def check_bagging_encryption(m_data):
-        bagging     = type(m_data) == list and type(m_data[0]) == list
-        if bagging:
-            encrypted = type(m_data[0][0]) == ts.CKKSVector
-        else:
-            encrypted = type(m_data[0]) == ts.CKKSVector
-
-        return bagging, encrypted

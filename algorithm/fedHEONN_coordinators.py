@@ -530,10 +530,6 @@ class FedHEONN_coordinator:
                 "parallel": self.parallel, "ctx_str": self.ctx_str}
 
     @staticmethod
-    def generate_ensemble_params():
-        return {'bagging'}
-
-    @staticmethod
     def load_context(ctx_str):
         log.info(f"Loading context from: ({ctx_str})")
         with open(ctx_str, "rb") as f:

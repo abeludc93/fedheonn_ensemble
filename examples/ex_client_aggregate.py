@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-import threading
-
 from algorithm.fedHEONN_clients import FedHEONN_classifier
 from api.client import Client
 import tenseal as ts
+from api.utils import serialize_client_data
 
 ctx = ts.context(ts.SCHEME_TYPE.CKKS, poly_modulus_degree=32768, coeff_mod_bit_sizes=[60, 40, 40, 60])
 ctx.generate_galois_keys()
@@ -85,7 +84,7 @@ M_c, US_c = fed_client.get_param()
 
 # Aggregate partial data
 #response = client.aggregate_partial(m_data=M_c, US_data=US_c)
-data = Client.serialize_client_data(m_data=M_c, US_data=US_c)
+data = serialize_client_data(m_data=M_c, US_data=US_c)
 #response = client.aggregate_partial(data)
 #print(response)
 for i in range(3):

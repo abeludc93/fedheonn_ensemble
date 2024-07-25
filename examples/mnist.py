@@ -88,7 +88,7 @@ if __name__ == "__main__":
     ens_client = FedHEONN_client.generate_ensemble_params(n_estimators=n_estimators,
                                                           p_samples=p_samples, b_samples=b_samples,
                                                           p_features=p_feat, b_features=b_feat) if bag else {}
-    ens_coord = FedHEONN_coordinator.generate_ensemble_params() if bag else {}
+    ens_coord = {'bagging'} if bag else {}
 
     # Load dataset
     np.random.seed(1)
