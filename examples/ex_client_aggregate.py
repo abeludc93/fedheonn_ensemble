@@ -43,7 +43,7 @@ response = client.load_dataset()
 length = int(response)
 print(f"dataset load response: {length}")
 # FETCH TRAIN DATA
-trainX, trainY = client.fetch_dataset(length//6)
+trainX, trainY = client.fetch_dataset(length//10)
 # FETCH TEST DATA
 testX, testY = client.fetch_dataset_test()
 

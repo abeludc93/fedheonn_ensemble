@@ -55,7 +55,9 @@ class PartialData:
     US_lst: list
 
 # Computationally Intensive Task
-def cpu_bound_task(partial_data: PartialData, sc: FedHEONN_coordinator):
+def cpu_bound_task(partial_data: PartialData):
+    sc = singleton_coordinator()
+
     print(f"Aggregating partial data from: {partial_data.id}")
     sc.aggregate_partial([partial_data.M_lst], [partial_data.US_lst])
     sc.calculate_weights()
@@ -68,7 +70,7 @@ async def process_partial_aggregation(q: asyncio.Queue, pool: ThreadPoolExecutor
         loop = asyncio.get_running_loop()
         print(f"Processing next client data, remaining: {q.qsize()}")
         CLIENT_DATA[partial_data.id] = "PROCESSING"
-        await loop.run_in_executor(pool, cpu_bound_task, partial_data, singleton_coordinator())
+        await loop.run_in_executor(pool, cpu_bound_task, partial_data)
         # Tell the queue that the processing on the task is completed
         q.task_done()
         CLIENT_DATA[partial_data.id] = "FINISHED"
