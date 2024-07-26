@@ -4,13 +4,13 @@
 # Standard libraries
 import json
 import asyncio
+import time
 import uuid
-from base64 import b64encode
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 # Third-party libraries
 import uvicorn
-from fastapi import FastAPI, Request, Depends, UploadFile
+from fastapi import FastAPI, Request, UploadFile
 from fastapi.responses import FileResponse, Response, JSONResponse
 from dataclasses import dataclass
 # Application modules
@@ -48,27 +48,25 @@ CLIENT_DATA = {
 }
 
 
-# Create FastAPI
-
-# Computationally Intensive Task
-
 @dataclass
 class PartialData:
     id: str
     M_lst: list
     US_lst: list
 
+# Computationally Intensive Task
 def cpu_bound_task(partial_data: PartialData, sc: FedHEONN_coordinator):
     print(f"Aggregating partial data from: {partial_data.id}")
     sc.aggregate_partial([partial_data.M_lst], [partial_data.US_lst])
     sc.calculate_weights()
+    time.sleep(15)
 
 async def process_partial_aggregation(q: asyncio.Queue, pool: ThreadPoolExecutor):
     while True:
         # Get a request from the queue
         partial_data = await q.get()
         loop = asyncio.get_running_loop()
-        print(f"Processing next client data...")
+        print(f"Processing next client data, remaining: {q.qsize()}")
         CLIENT_DATA[partial_data.id] = "PROCESSING"
         await loop.run_in_executor(pool, cpu_bound_task, partial_data, singleton_coordinator())
         # Tell the queue that the processing on the task is completed
@@ -85,12 +83,13 @@ async def lifespan(fastapi_app: FastAPI):
     # Free any resources that the pool is using when the currently pending futures are done executing
     pool.shutdown()
 
+# Create FastAPI
 app = FastAPI(lifespan=lifespan)
 def start():
     uvicorn.run(app, host=host, port=port)
 
 # Define singleton instance of coordinator
-def singleton_coordinator():
+def singleton_coordinator() -> FedHEONN_coordinator:
     if not hasattr(singleton_coordinator, "server_coordinator"):
         singleton_coordinator.server_coordinator = FedHEONN_coordinator()
     return singleton_coordinator.server_coordinator
@@ -108,8 +107,10 @@ def ping() -> dict[str, str]:
     return {"message": "pong"}
 
 @app.get("/status")
-def status(sc: FedHEONN_coordinator = Depends(singleton_coordinator)) -> ServerStatus:
+def status() -> ServerStatus:
     """Used to check current server status"""
+    sc = singleton_coordinator()
+
     test_status = {
         "contexts": list(CONTEXTS.keys()),
         "selected_context": CURRENT_CONTEXT[0],
@@ -179,8 +180,9 @@ def select_dataset(dataset_name: str) -> str | JSONResponse:
         return answer_404(f"Dataset not found on server database: {dataset_name}")
 
 @app.get("/dataset/load", response_model=None)
-def load_dataset(dataset_loader: DataSetLoader = Depends(singleton_dataset_loader)) -> int | JSONResponse:
+def load_dataset() -> int | JSONResponse:
     global CURRENT_DATASET
+    dataset_loader = singleton_dataset_loader()
 
     if CURRENT_DATASET is not None:
         if dataset_loader.is_loaded():
@@ -196,7 +198,8 @@ def load_dataset(dataset_loader: DataSetLoader = Depends(singleton_dataset_loade
         return answer_404("Dataset not selected!")
 
 @app.get("/dataset/fetch", response_model=None)
-def fetch_dataset(size:int, dataset_loader: DataSetLoader = Depends(singleton_dataset_loader)) -> str | JSONResponse:
+def fetch_dataset(size:int) -> str | JSONResponse:
+    dataset_loader = singleton_dataset_loader()
 
     if dataset_loader.get_name() is None:
         return answer_404("Dataset not selected!")
@@ -209,7 +212,8 @@ def fetch_dataset(size:int, dataset_loader: DataSetLoader = Depends(singleton_da
         return json.dumps([frag.tolist() for frag in fragment])
 
 @app.get("/dataset/fetch/test", response_model=None)
-def fetch_dataset_test(dataset_loader: DataSetLoader = Depends(singleton_dataset_loader)) -> str | JSONResponse:
+def fetch_dataset_test() -> str | JSONResponse:
+    dataset_loader = singleton_dataset_loader()
 
     if dataset_loader.get_name() is None:
         return answer_404("Dataset not selected!")
@@ -220,8 +224,9 @@ def fetch_dataset_test(dataset_loader: DataSetLoader = Depends(singleton_dataset
         return json.dumps([frag.tolist() for frag in fragment])
 
 @app.put("/coordinator/parameters")
-def set_coordinator_parameters(coord_params: CoordinatorParams,
-                               sc: FedHEONN_coordinator = Depends(singleton_coordinator)) -> JSONResponse:
+def set_coordinator_parameters(coord_params: CoordinatorParams) -> JSONResponse:
+    sc = singleton_coordinator()
+
     try:
         sc.set_activation_functions(coord_params.f)
         sc.lam = coord_params.lam
@@ -235,8 +240,9 @@ def set_coordinator_parameters(coord_params: CoordinatorParams,
         return answer_418(str(err))
 
 @app.post("/coordinator/index_features")
-def calculate_index_features(bagging_params: BaggingParams,
-                             sc: FedHEONN_coordinator = Depends(singleton_coordinator)) -> JSONResponse:
+def calculate_index_features(bagging_params: BaggingParams) -> JSONResponse:
+    sc = singleton_coordinator()
+
     try:
         sc.calculate_idx_feats(n_estimators=bagging_params.n_estimators,
                                            n_features=bagging_params.n_features,
@@ -251,12 +257,16 @@ def calculate_index_features(bagging_params: BaggingParams,
         return answer_418(str(err))
 
 @app.get("/coordinator/index_features")
-def send_index_features(sc: FedHEONN_coordinator = Depends(singleton_coordinator)) -> str:
+def send_index_features() -> str:
+    sc = singleton_coordinator()
+
     idx_feats = sc.send_idx_feats()
     return json.dumps(idx_feats)
 
 @app.get("/coordinator/send_weights")
-def send_weights(sc: FedHEONN_coordinator = Depends(singleton_coordinator)) -> JSONResponse:
+def send_weights() -> JSONResponse:
+    sc = singleton_coordinator()
+
     try:
         if not sc.W:
             # No optimal weights yet
@@ -268,11 +278,13 @@ def send_weights(sc: FedHEONN_coordinator = Depends(singleton_coordinator)) -> J
     except Exception as err:
         return answer_418(str(err))
 
+
 @app.post("/aggregate/partial")
-async def aggregate_partial(request: Request,
-                            sc: FedHEONN_coordinator = Depends(singleton_coordinator)) -> JSONResponse:
+async def aggregate_partial(request: Request) -> JSONResponse:
     global CURRENT_CONTEXT
+
     try:
+        sc = singleton_coordinator()
         # Status - ready for aggregation?
         if sc.encrypted and CURRENT_CONTEXT[0] is None:
             return answer_418("Context not loaded/selected and encryption enabled!")
