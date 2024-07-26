@@ -13,14 +13,6 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 ### BASE MODELS ###
-class Context(BaseModel):
-    context: str
-
-class CKKSVector(BaseModel):
-    ckks_vector: str
-
-class NumpyArray(BaseModel):
-    nd_array: str
 
 class CoordinatorParams(BaseModel):
     f: str
