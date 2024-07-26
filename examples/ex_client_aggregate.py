@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
+
+from sklearn.metrics import accuracy_score
 from algorithm.fedHEONN_clients import FedHEONN_classifier
 from api.client import Client
 import tenseal as ts
@@ -40,8 +42,10 @@ print(f"dataset select response: {response}")
 response = client.load_dataset()
 length = int(response)
 print(f"dataset load response: {length}")
-# FETCH DATA
+# FETCH TRAIN DATA
 trainX, trainY = client.fetch_dataset(length//6)
+# FETCH TEST DATA
+testX, testY = client.fetch_dataset_test()
 
 # FIT DATA
 enc = True
@@ -67,16 +71,6 @@ if bag:
     print(f"{type(idx_feats)}: {idx_feats}")
     fed_client.set_idx_feats(idx_feats)
 
-# DEBUG WEIGHTS
-"""
-response = client.receive_weights()
-print(f"{response}")
-fed_client.set_weights(response)
-
-response = client.receive_weights()
-print(f"{response}")
-fed_client.set_weights(response)
-"""
 
 # Fit client local data
 fed_client.fit(trainX, trainY)
@@ -96,6 +90,12 @@ input()
 response = client.receive_weights()
 print(f"WEIGHTS: {len(response)}")
 fed_client.set_weights(W=response, serialized=True)
+
+# PREDICT on TEST DATA
+test_predict = fed_client.predict(testX)
+metric = 100 * accuracy_score(testY, test_predict)
+print(f"Accuracy on whole TEST data: {metric}")
+
 
 """
 threads = list()
