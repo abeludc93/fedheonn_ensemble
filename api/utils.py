@@ -270,13 +270,14 @@ def serialize_client_data(m_data:  list[np.ndarray | ts.CKKSVector] | list[list[
 
     return data
 
-def check_bagging_encryption(m_data: list[np.ndarray | ts.CKKSVector] | list[list[np.ndarray | ts.CKKSVector]]):
+def check_bagging_encryption(m_data: list[np.ndarray | ts.CKKSVector | str] |
+                                     list[list[np.ndarray | ts.CKKSVector | str]]):
 
     bagging     = type(m_data) == list and type(m_data[0]) == list
     if bagging:
-        encrypted = type(m_data[0][0]) == ts.CKKSVector
+        encrypted = type(m_data[0][0]) == ts.CKKSVector or type(m_data[0][0]) == str
     else:
-        encrypted = type(m_data[0]) == ts.CKKSVector
+        encrypted = type(m_data[0]) == ts.CKKSVector or type(m_data[0]) == str
 
     return bagging, encrypted
 
@@ -303,3 +304,22 @@ def deserialize_coordinator_weights(data: list[np.ndarray | str] | list[list[np.
             W = [np.asarray(arr) for arr in data]
 
     return W
+
+def serialize_coordinator_weights(W: list[np.ndarray | ts.CKKSVector] | list[list[np.ndarray | ts.CKKSVector]],
+                                  encrypted: bool):
+    W_length = len(W)
+    if encrypted:
+        # Encrypted W data (tenSEAL CKKS vectors)
+        if type(W) == list and type(W[0]) == list:
+            data = []
+            for i in range(W_length):
+                data.append([b64encode(arr.serialize()).decode('ascii') for arr in W[i]])
+        else:
+            data = [b64encode(arr.serialize()).decode('ascii') for arr in W]
+        return data
+    elif not encrypted:
+        # Plain W data (optimal weights)
+        data = []
+        for i in range(W_length):
+            data.append([arr.tolist() for arr in W[i]])
+        return data

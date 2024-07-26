@@ -18,7 +18,7 @@ from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from api.utils import load_context, save_context, delete_context
 from api.utils import CoordinatorParams, ServerStatus, BaggingParams
 from api.utils import answer_418, answer_404, answer_200, answer_200_data
-from api.utils import DataSetLoader, deserialize_client_data
+from api.utils import DataSetLoader, deserialize_client_data, serialize_coordinator_weights
 from examples.utils import load_skin_dataset, load_mini_boone, load_dry_bean, load_carbon_nanotube, load_mnist_digits
 
 # Server parameters
@@ -60,7 +60,7 @@ class PartialData:
 
 def cpu_bound_task(partial_data: PartialData, sc: FedHEONN_coordinator):
     print(f"Aggregating partial data from: {partial_data.id}")
-    sc.aggregate_partial(partial_data.M_lst, partial_data.US_lst)
+    sc.aggregate_partial([partial_data.M_lst], [partial_data.US_lst])
     sc.calculate_weights()
 
 async def process_partial_aggregation(q: asyncio.Queue, pool: ThreadPoolExecutor):
@@ -258,25 +258,13 @@ def send_index_features(sc: FedHEONN_coordinator = Depends(singleton_coordinator
 @app.get("/coordinator/send_weights")
 def send_weights(sc: FedHEONN_coordinator = Depends(singleton_coordinator)) -> JSONResponse:
     try:
-        W_length = len(sc.W)
-        if sc.encrypted and sc.W:
-            # Encrypted W data (tenSEAL CKKS vectors)
-            if type(sc.W) == list and type(sc.W[0]) == list:
-                data = []
-                for i in range(W_length):
-                    data.append([b64encode(arr.serialize()).decode('ascii') for arr in sc.W[i]])
-            else:
-                data = [b64encode(arr.serialize()).decode('ascii') for arr in sc.W]
-            return answer_200_data(msg="encrypted", data=json.dumps(data))
-        elif not sc.encrypted and sc.W:
-            # Plain W data (optimal weights)
-            data = []
-            for i in range(W_length):
-                data.append([arr.tolist() for arr in sc.W[i]])
-            return answer_200_data(msg="plain", data=json.dumps(data))
-        else:
+        if not sc.W:
             # No optimal weights yet
             return answer_404("Empty optimal weights W, no data or not yet calculated!")
+        else:
+            data = serialize_coordinator_weights(sc.W, sc.encrypted)
+            return answer_200_data(msg="encrypted" if sc.encrypted else "plain", data=json.dumps(data))
+
     except Exception as err:
         return answer_418(str(err))
 

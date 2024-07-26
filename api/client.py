@@ -177,7 +177,7 @@ class Client:
         return test_array
 
     """ FEDHEONN METHODS"""
-    def aggregate_partial(self, data: list) -> str:
+    def aggregate_partial(self, data: list) -> (str, str):
         url = self._base_url + "/aggregate/partial"
 
         # Send fitted data (ready for serialization) to the server for partial aggregation
@@ -189,7 +189,7 @@ class Client:
         if response.status_code != 200:
             handle_error_response(response)
 
-        return response.json()["message"]
+        return response.json()["message"], response.json()["data"]
 
     def update_coordinator_parameters(self, f_act: str='logs', lam: float=0, spr: bool=True, enc: bool=False,
                                       bag: bool=False, par: bool=False, ctx_str: str=None):

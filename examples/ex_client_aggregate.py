@@ -88,14 +88,14 @@ data = serialize_client_data(m_data=M_c, US_data=US_c)
 #response = client.aggregate_partial(data)
 #print(response)
 for i in range(3):
-    response = client.aggregate_partial(data)
-    print(f"\tAGGREGATE PARTIAL ({i+1}):\n{response}")
+    response, data_id = client.aggregate_partial(data)
+    print(f"\tAGGREGATE PARTIAL ({i+1}):\n[{data_id}]: {response}")
 
 # Receive weights
 input()
 response = client.receive_weights()
 print(f"WEIGHTS: {len(response)}")
-fed_client.set_weights(W=response)
+fed_client.set_weights(W=response, serialized=True)
 
 """
 threads = list()
