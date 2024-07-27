@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
-import threading
 
+from sklearn.metrics import accuracy_score
 from algorithm.fedHEONN_clients import FedHEONN_classifier
-from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from api.client import Client
 import tenseal as ts
+from api.utils import serialize_client_data
 
 ctx = ts.context(ts.SCHEME_TYPE.CKKS, poly_modulus_degree=32768, coeff_mod_bit_sizes=[60, 40, 40, 60])
 ctx.generate_galois_keys()
@@ -42,8 +42,10 @@ print(f"dataset select response: {response}")
 response = client.load_dataset()
 length = int(response)
 print(f"dataset load response: {length}")
-# FETCH DATA
-trainX, trainY = client.fetch_dataset(length//2)
+# FETCH TRAIN DATA
+trainX, trainY = client.fetch_dataset(length//10)
+# FETCH TEST DATA
+testX, testY = client.fetch_dataset_test()
 
 # FIT DATA
 enc = True
@@ -69,18 +71,29 @@ if bag:
     print(f"{type(idx_feats)}: {idx_feats}")
     fed_client.set_idx_feats(idx_feats)
 
+
 # Fit client local data
 fed_client.fit(trainX, trainY)
 M_c, US_c = fed_client.get_param()
 
 # Aggregate partial data
-#response = client.aggregate_partial(m_data=M_c, US_data=US_c)
-data = Client.serialize_client_data(m_data=M_c, US_data=US_c)
-#response = client.aggregate_partial(data)
-#print(response)
-for i in range(3):
-    response = client.aggregate_partial(data)
-    print(f"\tAGGREGATE PARTIAL ({i+1}):\n{response}")
+
+data = serialize_client_data(m_data=M_c, US_data=US_c)
+for i in range(5):
+    response, data_id = client.aggregate_partial(data)
+    print(f"\tAGGREGATE PARTIAL ({i+1}):\n[{data_id}]: {response}")
+
+# Receive weights
+input("Receive weights and predict? ")
+response = client.receive_weights()
+print(f"WEIGHTS: {len(response)}")
+fed_client.set_weights(W=response, serialized=True)
+
+# PREDICT on TEST DATA
+test_predict = fed_client.predict(testX)
+metric = 100 * accuracy_score(testY, test_predict)
+print(f"Accuracy on whole TEST data: {metric}")
+
 
 """
 threads = list()
