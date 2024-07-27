@@ -16,9 +16,9 @@ from dataclasses import dataclass
 # Application modules
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from api.utils import load_context, save_context, delete_context
-from api.utils import CoordinatorParams, ServerStatus, BaggingParams
+from api.utils import CoordinatorParams, ServerStatus, BaggingParams, ClientDataReport, DataSetReport
 from api.utils import answer_418, answer_404, answer_200, answer_200_data
-from api.utils import DataSetLoader, deserialize_client_data, serialize_coordinator_weights
+from api.utils import DataSetLoader, deserialize_client_data, serialize_coordinator_weights, get_client_data_report
 from examples.utils import load_skin_dataset, load_mini_boone, load_dry_bean, load_carbon_nanotube, load_mnist_digits
 
 # Server parameters
@@ -57,11 +57,9 @@ class PartialData:
 # Computationally Intensive Task
 def cpu_bound_task(partial_data: PartialData):
     sc = singleton_coordinator()
-
     print(f"Aggregating partial data from: {partial_data.id}")
     sc.aggregate_partial([partial_data.M_lst], [partial_data.US_lst])
     sc.calculate_weights()
-    time.sleep(15)
 
 async def process_partial_aggregation(q: asyncio.Queue, pool: ThreadPoolExecutor):
     while True:
@@ -112,14 +110,15 @@ def ping() -> dict[str, str]:
 def status() -> ServerStatus:
     """Used to check current server status"""
     sc = singleton_coordinator()
-
+    dl = singleton_dataset_loader()
     test_status = {
         "contexts": list(CONTEXTS.keys()),
         "selected_context": CURRENT_CONTEXT[0],
         "datasets": list(DATASETS.keys()),
         "selected_dataset": CURRENT_DATASET,
+        "dataset_report": DataSetReport(**dl.get_report()),
         "coord_params": CoordinatorParams(**sc.get_parameters()),
-        "status": "WAITING CLIENTS",
+        "client_data_report": ClientDataReport(**get_client_data_report(CLIENT_DATA))
     }
     return ServerStatus(**test_status)
 
@@ -187,7 +186,7 @@ def load_dataset() -> int | JSONResponse:
     dataset_loader = singleton_dataset_loader()
 
     if CURRENT_DATASET is not None:
-        if dataset_loader.is_loaded():
+        if dataset_loader.is_loaded() and dataset_loader.get_name() == CURRENT_DATASET:
             return dataset_loader.dataset_length - dataset_loader.dataset_index
         else:
             dataset_loader.clean_loader()
@@ -305,3 +304,10 @@ async def aggregate_partial(request: Request) -> JSONResponse:
 
     except Exception as e:
         return answer_404(str(e))
+
+@app.get("/aggregate/status")
+async def check_status(data_uuid: str):
+    if data_uuid in CLIENT_DATA:
+        return answer_200(msg=CLIENT_DATA[data_uuid])
+    else:
+        return answer_404(msg=f"Partial data with UUID ({data_uuid}) not found on server database!")

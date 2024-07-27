@@ -259,3 +259,15 @@ class Client:
             return None
 
         return W
+
+    def check_aggregate_status(self, data_uuid: str) -> str | None:
+        url = self._base_url + f"f/aggregate/status?data_uuid={data_uuid}"
+
+        # Check the status of enqueued aggregation data
+        try:
+            response = requests.get(url)
+            msg = json.loads(response.json())
+            return msg["message"]
+        except Exception as err:
+            print(f"CLIENT [check_aggregate_status] error: {err}")
+            return None

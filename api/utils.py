@@ -14,6 +14,19 @@ from pydantic import BaseModel
 
 ### BASE MODELS ###
 
+class DataSetReport(BaseModel):
+    name: str | None
+    loaded: bool | None
+    train_length: int | None
+    train_index: int | None
+    depleted: bool | None
+
+class ClientDataReport(BaseModel):
+    client_data_total: int
+    client_data_queued: int
+    client_data_processing: int
+    client_data_finished: int
+
 class CoordinatorParams(BaseModel):
     f: str
     lam: float
@@ -31,10 +44,11 @@ class BaggingParams(BaseModel):
 
 class ServerStatus(BaseModel):
     contexts: list[str]
-    datasets: list[str]
     selected_context: str | None
+    datasets: list[str]
     selected_dataset: str | None
-    status: str
+    dataset_report: DataSetReport
+    client_data_report: ClientDataReport
     coord_params: CoordinatorParams | None
 
 ### CUSTOM EXCEPTIONS ###
@@ -124,6 +138,18 @@ def delete_context(ctx_filepath: str):
     else:
         print(f"\tCouldn't delete temporary file (empty or not found): {ctx_filepath}")
 
+### CLIENT DATABASE AUXILIARY FUNCTION ###
+def get_client_data_report(client_database: dict[str, str]) -> dict[str, int]:
+    report = {"client_data_total": 0, "client_data_queued": 0, "client_data_processing": 0, "client_data_finished": 0}
+    if not client_database:
+        return report
+    else:
+        values = list(client_database.values())
+        report["client_data_total"] = len(client_database)
+        report["client_data_queued"] = values.count("ENQUEUED")
+        report["client_data_processing"] = values.count("PROCESSING")
+        report["client_data_finished"] = values.count("FINISHED")
+        return report
 
 ### DATASET LOADER CLASS HELPER ###
 class DataSetLoader:
@@ -138,6 +164,7 @@ class DataSetLoader:
 
     def set_fload(self, f_load):
         self.f_load = f_load
+
     def set_dataset_name(self, name):
         self.dataset_name = name
 
@@ -198,6 +225,10 @@ class DataSetLoader:
         if self.dataset_name is None:
             return True
         return self.dataset_index >= self.dataset_length
+
+    def get_report(self) -> dict:
+        return {"name": self.get_name(), "loaded": self.is_loaded(), "train_length": self.dataset_length,
+                "train_index": self.dataset_index, "depleted": self.is_empty_dataset()}
 
 ### SERVER COORDINATOR CLASS HELPER ###
 

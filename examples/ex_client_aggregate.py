@@ -77,16 +77,14 @@ fed_client.fit(trainX, trainY)
 M_c, US_c = fed_client.get_param()
 
 # Aggregate partial data
-#response = client.aggregate_partial(m_data=M_c, US_data=US_c)
+
 data = serialize_client_data(m_data=M_c, US_data=US_c)
-#response = client.aggregate_partial(data)
-#print(response)
-for i in range(3):
+for i in range(5):
     response, data_id = client.aggregate_partial(data)
     print(f"\tAGGREGATE PARTIAL ({i+1}):\n[{data_id}]: {response}")
 
 # Receive weights
-input()
+input("Receive weights and predict? ")
 response = client.receive_weights()
 print(f"WEIGHTS: {len(response)}")
 fed_client.set_weights(W=response, serialized=True)
