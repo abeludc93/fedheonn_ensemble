@@ -261,7 +261,7 @@ class Client:
         return W
 
     def check_aggregate_status(self, data_uuid: str) -> str | None:
-        url = self._base_url + f"f/aggregate/status?data_uuid={data_uuid}"
+        url = self._base_url + f"/aggregate/status?data_uuid={data_uuid}"
 
         # Check the status of enqueued aggregation data
         try:
@@ -270,4 +270,16 @@ class Client:
             return msg["message"]
         except Exception as err:
             print(f"CLIENT [check_aggregate_status] error: {err}")
+            return None
+
+    def clean_server(self) -> str | None:
+        url = self._base_url + f"/server/clean"
+
+        # Sets CURRENT_CONTEXT, CURRENT_DATASET and clears coordinator W, M and US data.
+        try:
+            response = requests.delete(url)
+            msg = json.loads(response.json())
+            return msg["message"]
+        except Exception as err:
+            print(f"CLIENT [clean_server] error: {err}")
             return None

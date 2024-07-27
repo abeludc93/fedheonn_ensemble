@@ -224,6 +224,19 @@ def fetch_dataset_test() -> str | JSONResponse:
         fragment = dataset_loader.fetch_test()
         return json.dumps([frag.tolist() for frag in fragment])
 
+@app.delete("/server/clean")
+def clean_server() -> JSONResponse:
+    global CURRENT_DATASET, CURRENT_CONTEXT
+    try:
+        CURRENT_DATASET = None
+        CURRENT_CONTEXT = None
+        sc = singleton_coordinator()
+        sc.set_ctx_str(None) # Avoid deleting set context
+        sc.clean_coordinator()
+    except Exception as err:
+        return answer_404(str(err))
+    return answer_200(msg="Dataset, context and coordinator reset!")
+
 @app.put("/coordinator/parameters")
 def set_coordinator_parameters(coord_params: CoordinatorParams) -> JSONResponse:
     sc = singleton_coordinator()
@@ -249,7 +262,7 @@ def calculate_index_features(bagging_params: BaggingParams) -> JSONResponse:
                                            n_features=bagging_params.n_features,
                                            p_features=bagging_params.p_features,
                                            b_features=bagging_params.b_features)
-        return answer_200('Coordinator picked random patches for data features! ')
+        return answer_200('Coordinator picked random patches for data features!')
     except AssertionError as a_err:
         return answer_404(f"Check for n_estimators > 1 and p_features > 0!: {a_err}")
     except ValueError as v_err:

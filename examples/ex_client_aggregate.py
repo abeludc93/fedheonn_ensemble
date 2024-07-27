@@ -92,7 +92,7 @@ fed_client.set_weights(W=response, serialized=True)
 # PREDICT on TEST DATA
 test_predict = fed_client.predict(testX)
 metric = 100 * accuracy_score(testY, test_predict)
-print(f"Accuracy on whole TEST data: {metric}")
+print(f"Accuracy on whole TEST data: {metric:.2f}")
 
 
 """
