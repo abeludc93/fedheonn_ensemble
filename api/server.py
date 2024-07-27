@@ -20,6 +20,8 @@ from api.utils import CoordinatorParams, ServerStatus, BaggingParams, ClientData
 from api.utils import answer_418, answer_404, answer_200, answer_200_data
 from api.utils import DataSetLoader, deserialize_client_data, serialize_coordinator_weights, get_client_data_report
 from examples.utils import load_skin_dataset, load_mini_boone, load_dry_bean, load_carbon_nanotube, load_mnist_digits
+from auxiliary.logger import logger as log
+
 
 # Server parameters
 host = '0.0.0.0'
@@ -57,7 +59,7 @@ class PartialData:
 # Computationally Intensive Task
 def cpu_bound_task(partial_data: PartialData):
     sc = singleton_coordinator()
-    print(f"Aggregating partial data from: {partial_data.id}")
+    log.info(f"\t\tAggregating partial data from: {partial_data.id}")
     sc.aggregate_partial([partial_data.M_lst], [partial_data.US_lst])
     sc.calculate_weights()
 
@@ -66,7 +68,7 @@ async def process_partial_aggregation(q: asyncio.Queue, pool: ThreadPoolExecutor
         # Get a request from the queue
         partial_data = await q.get()
         loop = asyncio.get_running_loop()
-        print(f"Processing next client data, remaining: {q.qsize()}")
+        log.info(f"\tProcessing next client data, remaining: {q.qsize()}")
         CLIENT_DATA[partial_data.id] = "PROCESSING"
         await loop.run_in_executor(pool, cpu_bound_task, partial_data)
         # Tell the queue that the processing on the task is completed
@@ -193,7 +195,7 @@ def load_dataset() -> int | JSONResponse:
             dataset_loader.set_dataset_name(CURRENT_DATASET)
             dataset_loader.set_fload(DATASETS[CURRENT_DATASET])
             dataset_length = dataset_loader.load()
-            print(f"\t\t Dataset: {dataset_loader.get_name()} loaded!")
+            log.info(f"\tDataset: [{dataset_loader.get_name()}] loaded correctly!")
             return dataset_length
     else:
         return answer_404("Dataset not selected!")

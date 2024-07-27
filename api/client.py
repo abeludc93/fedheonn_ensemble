@@ -10,6 +10,7 @@ import numpy as np
 from pydantic import ValidationError
 # Application modules
 from api.utils import ServerStatus, handle_error_response, ParseError, ServerError, deserialize_coordinator_weights
+from auxiliary.logger import logger as log
 
 class Client:
     """Client to communicate with server for aggregation and evaluation"""
@@ -208,7 +209,7 @@ class Client:
 
         return response.json()["message"]
 
-    def calculate_index_features(self, n_estimators: int, n_features: int, p_features:float, b_features:bool) -> str:
+    def calculate_index_features(self, n_estimators: int, n_features: int, p_features:float, b_features:bool) -> str | None:
         url = self._base_url + "/coordinator/index_features"
 
         # Sends a signal to the FedHEONN coordinator to calculate a random set of features
@@ -218,7 +219,8 @@ class Client:
             if response.status_code != 200:
                 handle_error_response(response)
         except Exception as err:
-            return f"CLIENT [calculate_index_features] error: {err}"
+            log.error(f"CLIENT [calculate_index_features] error: {err}")
+            return None
 
         return response.json()["message"]
 
@@ -232,7 +234,7 @@ class Client:
             if response.status_code == 200:
                 arr = json.loads(response.json())
         except Exception as err:
-            print(f"CLIENT [get_index_features] error: {err}")
+            log.error(f"CLIENT [get_index_features] error: {err}")
             return None
 
         if response.status_code != 200:
@@ -255,7 +257,7 @@ class Client:
             else:
                 handle_error_response(response)
         except Exception as err:
-            print(f"CLIENT [send_weights] error: {err}")
+            log.error(f"CLIENT [send_weights] error: {err}")
             return None
 
         return W
@@ -269,7 +271,7 @@ class Client:
             msg = json.loads(response.json())
             return msg["message"]
         except Exception as err:
-            print(f"CLIENT [check_aggregate_status] error: {err}")
+            log.error(f"CLIENT [check_aggregate_status] error: {err}")
             return None
 
     def clean_server(self) -> str | None:
@@ -281,5 +283,5 @@ class Client:
             msg = json.loads(response.json())
             return msg["message"]
         except Exception as err:
-            print(f"CLIENT [clean_server] error: {err}")
+            log.error(f"CLIENT [clean_server] error: {err}")
             return None

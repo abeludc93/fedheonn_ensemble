@@ -11,6 +11,7 @@ import numpy as np
 import tenseal as ts
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from auxiliary.logger import logger as log
 
 ### BASE MODELS ###
 
@@ -125,6 +126,7 @@ def save_context(ctx_name: str, content: bytes, ctx_dict: dict) -> str:
 def load_context(ctx_name: str, ctx_dict: dict) -> ts.Context | None:
     """Load a TenSEALContext"""
     if ctx_name not in ctx_dict:
+        log.warn(f"{ctx_name} not found amongst contexts!")
         return None
     else:
         with open(ctx_dict[ctx_name], "rb") as f:
@@ -136,7 +138,7 @@ def delete_context(ctx_filepath: str):
     if ctx_filepath and os.path.isfile(ctx_filepath):
         os.remove(ctx_filepath)
     else:
-        print(f"\tCouldn't delete temporary file (empty or not found): {ctx_filepath}")
+        log.warn(f"\tCouldn't delete temporary file (empty or not found): {ctx_filepath}")
 
 ### CLIENT DATABASE AUXILIARY FUNCTION ###
 def get_client_data_report(client_database: dict[str, str]) -> dict[str, int]:
@@ -229,11 +231,6 @@ class DataSetLoader:
     def get_report(self) -> dict:
         return {"name": self.get_name(), "loaded": self.is_loaded(), "train_length": self.dataset_length,
                 "train_index": self.dataset_index, "depleted": self.is_empty_dataset()}
-
-### SERVER COORDINATOR CLASS HELPER ###
-
-
-
 
 ### AUXILIARY FUNCTIONS FOR DATA SERIALIZATION ###
 def deserialize_client_data(M, US, ctx):
