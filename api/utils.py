@@ -21,6 +21,7 @@ class DataSetReport(BaseModel):
     train_length: int | None
     train_index: int | None
     depleted: bool | None
+    train_features: int | None
 
 class ClientDataReport(BaseModel):
     client_data_total: int
@@ -159,6 +160,7 @@ class DataSetLoader:
         self.f_load = f_load
         self.dataset_name = name
         self.dataset_length = None
+        self.dataset_features = None
         self.dataset_index = None
         self.train_data = []
         self.test_data = []
@@ -198,6 +200,7 @@ class DataSetLoader:
         # Training set shape
         self.dataset_index = 0
         self.dataset_length = tuple_data[0].shape[0]
+        self.dataset_features = tuple_data[0].shape[1]
         self.loaded = True
 
         return self.dataset_length
@@ -229,8 +232,12 @@ class DataSetLoader:
         return self.dataset_index >= self.dataset_length
 
     def get_report(self) -> dict:
-        return {"name": self.get_name(), "loaded": self.is_loaded(), "train_length": self.dataset_length,
-                "train_index": self.dataset_index, "depleted": self.is_empty_dataset()}
+        return {"name": self.get_name(),
+                "loaded": self.is_loaded(),
+                "train_length": self.dataset_length,
+                "train_index": self.dataset_index,
+                "depleted": self.is_empty_dataset(),
+                "train_features": self.dataset_features}
 
 ### AUXILIARY FUNCTIONS FOR DATA SERIALIZATION ###
 def deserialize_client_data(M, US, ctx):

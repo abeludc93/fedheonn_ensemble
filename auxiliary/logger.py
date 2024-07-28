@@ -16,6 +16,7 @@ import time
 
 # Define global variables
 APP_NAME = "FedHEONN"
+LOG_LEVEL = logging.DEBUG
 LOG_LEVEL_CMD = logging.INFO
 LOG_LEVEL_FILE = logging.DEBUG
 LOG_PATH = os.path.normpath(os.getcwd() + os.sep + os.pardir)
@@ -39,6 +40,6 @@ _fh.setFormatter(_formatter_fh)
 
 # Create a logger and add handlers to it
 logger = logging.getLogger(APP_NAME)
-logger.setLevel(LOG_LEVEL_CMD)
+logger.setLevel(LOG_LEVEL)
 logger.addHandler(_ch)
 logger.addHandler(_fh)

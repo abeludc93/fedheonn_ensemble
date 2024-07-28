@@ -76,7 +76,7 @@ fed_client = FedHEONN_classifier(f='logs', encrypted=enc, sparse=True, context=c
 if bag:
     n_features = trainX.shape[1]
     response = client.calculate_index_features(n_estimators=n_estimators, n_features=n_features,
-                                    p_features=p_features, b_features=b_features)
+                                               p_features=p_features, b_features=b_features)
     log.info(f"\tBagging enabled: {response}")
     idx_feats = client.get_index_features()
     log.debug(f"\t\tRandomly picked index features: {idx_feats}")

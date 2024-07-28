@@ -326,3 +326,6 @@ async def check_status(data_uuid: str):
         return answer_200(msg=CLIENT_DATA[data_uuid])
     else:
         return answer_404(msg=f"Partial data with UUID ({data_uuid}) not found on server database!")
+
+if __name__ == "__main__":
+    start()
