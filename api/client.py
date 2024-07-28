@@ -268,7 +268,7 @@ class Client:
         # Check the status of enqueued aggregation data
         try:
             response = requests.get(url)
-            msg = json.loads(response.json())
+            msg = response.json()
             return msg["message"]
         except Exception as err:
             log.error(f"CLIENT [check_aggregate_status] error: {err}")
