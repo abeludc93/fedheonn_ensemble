@@ -18,7 +18,7 @@ from auxiliary.decorators import log_func
 
 # Define global variables
 CONFIG_FILENAME = "demo_config.ini"
-PROJECT_NAME = "FedHEONN"
+PROJECT_NAME = "fedheonn_ensemble"
 
 # Define helper variables
 INTEGER = "int_"
