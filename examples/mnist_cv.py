@@ -84,7 +84,7 @@ if __name__ == "__main__":
     # Sparse matrices
     spr = True
     # Regularization
-    lam = 0.01
+    lam = 0.1
     # Activation function
     f_act = 'logs'
     # IID or non-IID scenario (True or False)
@@ -94,10 +94,10 @@ if __name__ == "__main__":
     # Ensemble
     bag = True
     # Random Patches bagging parameters
-    n_estimators = 25
-    p_samples = 0.4
-    b_samples = True
-    p_feat = 0.9
+    n_estimators = 100
+    p_samples = 0.3
+    b_samples = False
+    p_feat = 0.7
     b_feat = False
     # Cross-validation
     kfold = True
