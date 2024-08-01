@@ -10,6 +10,7 @@ from random import seed, shuffle, randint
 from itertools import product
 import time
 import os
+from math import floor
 # Third-party libraries
 import numpy as np
 import pandas as pd
@@ -327,10 +328,10 @@ def load_mini_boone(f_test_size=0.3, b_preprocess=True, b_iid=True):
 def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, n_splits, bagging,
                                  train_X, train_Y_onehot, train_Y, clients):
     # Hyperparameter search grid
-    lambda_lst          = [0.01, 0.1, 1, 10]
-    n_estimators_lst    = [2, 5, 10, 25, 50, 75, 100, 200]
-    p_samples_lst       = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-    p_features_lst      = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    lambda_lst          = [0.01, 0.1]
+    n_estimators_lst    = [2, 5, 10]
+    p_samples_lst       = [0.8, 0.9]
+    p_features_lst      = [0.9, 1.0]
 
     # Ensemble method
     if bagging:
@@ -344,6 +345,11 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
     # Pandas dataframe dictionary
     df_dict = {"LAMBDA": [], "N_ESTIMATORS": [], "B_SAMPLES": [], "B_FEATS": [], "P_SAMPLES": [], "P_FEATS": [],
                "METRIC_MEAN": [], "METRIC_STD": []}
+
+    # Intermediate results
+    step = floor(gs_space / 10)
+    progress_iterations = [step * k for k in range(10) if step > 2]
+
     # MAIN LOOP
     for idx, tuple_it in enumerate(gs_it):
         # Construct parameters
@@ -414,12 +420,11 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
         df_dict["P_FEATS"].append(p_feats if bagging else None)
 
         # Log intermediate results (in progress)
-        current_percentage = (idx + 1) / gs_space * 100
-        if current_percentage % 10 == 0 and bagging:
+        if (idx + 1) in progress_iterations and bagging:
             pd.set_option("display.precision", 8)
             df = pd.DataFrame(df_dict)
             df.sort_values(by="METRIC_MEAN", inplace=True, ascending=False)
-            log.info(f"\tIn progress results ({current_percentage:.2f} %):\n{df.head()}")
+            log.info(f"\tIn progress results ({progress_iterations.index(idx+1) * 10} %):\n{df.head()}")
 
     return df_dict
 
@@ -445,6 +450,11 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
     # Pandas dataframe dictionary
     df_dict = {"LAMBDA": [], "N_ESTIMATORS": [], "B_SAMPLES": [], "B_FEATS": [], "P_SAMPLES": [], "P_FEATS": [],
                "METRIC_MEAN": [], "METRIC_STD": []}
+
+    # Intermediate results
+    step = floor(gs_space / 10)
+    progress_iterations = [step * k for k in range(10) if step > 2]
+
     # MAIN LOOP
     for idx, tuple_it in enumerate(gs_it):
         # Construct parameters
@@ -515,12 +525,11 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
         df_dict["P_FEATS"].append(p_feats if bagging else None)
 
         # Log intermediate results (in progress)
-        current_percentage = (idx + 1) / gs_space * 100
-        if current_percentage % 10 == 0 and bagging:
+        if (idx + 1) in progress_iterations and bagging:
             pd.set_option("display.precision", 8)
             df = pd.DataFrame(df_dict)
             df.sort_values(by="METRIC_MEAN", inplace=True, ascending=True)
-            log.info(f"\tIn progress results ({current_percentage:.2f} %):\n{df.head()}")
+            log.info(f"\tIn progress results ({progress_iterations.index(idx+1) * 10} %):\n{df.head()}")
 
     return df_dict
 
