@@ -34,13 +34,14 @@ def main():
         lst_clients.append(client)
 
     # PERFORM GLOBAL FIT
-    #acc_glb, w_glb = global_fit(list_clients=lst_clients, coord=coordinator,
-    #                            testX=testX, testT=testY, regression=False)
+    acc_glb, w_glb = global_fit(list_clients=lst_clients, coord=coordinator,
+                                testX=testX, testT=testY, regression=False)
     acc_inc, w_inc = incremental_fit(list_clients=lst_clients, ngroups=n_groups, coord=coordinator,
                                      testX=testX, testT=testY, regression=False, random_groups=rnd)
     # Print model's metrics
-    #log.info(f"Test accuracy global: {acc_glb:0.2f}")
+    log.info(f"Test accuracy global: {acc_glb:0.2f}")
     log.info(f"Test accuracy incremental: {acc_inc:0.2f}")
+
 
 if __name__ == "__main__":
     # ---- MODEL HYPERPARAMETERS----
@@ -51,7 +52,7 @@ if __name__ == "__main__":
     # Randomize number of clients per group in range (n_groups/2, groups*2)
     rnd = False
     # Encryption
-    enc = True
+    enc = False
     # Sparse matrices
     spr = True
     # Regularization
@@ -65,10 +66,10 @@ if __name__ == "__main__":
     # Ensemble
     bag = True
     # Random Patches bagging parameters
-    n_estimators = 8
-    p_samples = 0.65
-    b_samples = False
-    p_feat = 1.0
+    n_estimators = 25
+    p_samples = 0.4
+    b_samples = True
+    p_feat = 0.9
     b_feat = False
     # --------
 
