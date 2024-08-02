@@ -6,7 +6,7 @@ from algorithm.fedHEONN_clients import FedHEONN_classifier, FedHEONN_client
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from auxiliary.decorators import time_func
 from auxiliary.logger import logger as log
-from examples.utils import global_fit, incremental_fit, load_mnist_digits
+from examples.utils import global_fit, incremental_fit, load_skin_dataset
 
 
 @time_func
@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
     # Load dataset
     np.random.seed(1)
-    trainX, trainY_onehot, testX, testY, trainY = load_mnist_digits(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
+    trainX, trainY_onehot, testX, testY, trainY = load_skin_dataset(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
 
     # MNIST MAIN FUNCTION
     main()
