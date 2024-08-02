@@ -27,7 +27,7 @@ def main():
         cv = ShuffleSplit(n_splits=split, test_size=0.2, random_state=42)
     acc_glb_splits, w_glb_splits, acc_inc_splits, w_inc_splits = [], [], [], []
 
-    for it, (train_index, test_index) in  enumerate(cv.split(trainX, trainY_onehot)):
+    for it, (train_index, test_index) in enumerate(cv.split(trainX, trainY_onehot)):
 
         # Get split indexes
         log.info(f"Cross validation split: {it+1}")
@@ -64,7 +64,7 @@ def main():
         log.debug(f"Validation accuracy global: {acc_glb:0.2f}")
         log.debug(f"Validation accuracy incremental: {acc_inc:0.2f}")
 
-        # Clean coordinator incremental data for the next fold
+        # Clean coordinator data for the next fold
         coordinator.clean_coordinator()
 
     log.info(f"CV ACCURACY GLOBAL: MEAN {np.array(acc_glb_splits).mean():.2f} % - STD: {np.array(acc_glb_splits).std():.2f}")
@@ -94,10 +94,10 @@ if __name__ == "__main__":
     # Ensemble
     bag = True
     # Random Patches bagging parameters
-    n_estimators = 20
-    p_samples = 0.65
-    b_samples = False
-    p_feat = 0.75
+    n_estimators = 25
+    p_samples = 0.4
+    b_samples = True
+    p_feat = 0.9
     b_feat = False
     # Cross-validation
     kfold = True

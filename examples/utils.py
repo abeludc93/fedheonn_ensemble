@@ -10,6 +10,7 @@ from random import seed, shuffle, randint
 from itertools import product
 import time
 import os
+from math import floor
 # Third-party libraries
 import numpy as np
 import pandas as pd
@@ -28,6 +29,7 @@ from auxiliary.logger import logger as log
 # Seed random numbers
 seed(1)
 
+
 # Function that yields an iterator with the cartesian product of the given iterables
 def generate_grid_search_iterator(lambda_grid, n_estimators_grid,
                                   p_samples_grid=None, p_features_grid=None,
@@ -41,6 +43,7 @@ def generate_grid_search_iterator(lambda_grid, n_estimators_grid,
     if b_sample_grid is None:
         b_sample_grid = [True, False]
     return product(lambda_grid, n_estimators_grid, b_sample_grid, b_features_grid, p_samples_grid, p_features_grid)
+
 
 # Function to obtain prediction metrics for given (testX,testT) data using one client and a coordinator
 def get_prediction(ex_client, coord, testX, testT, regression=True):
@@ -140,7 +143,8 @@ def global_fit(list_clients, coord, testX, testT, regression=True):
     # Metrics
     metric = get_prediction(list_clients[0], coord, testX, testT, regression=regression)
 
-    return  metric, coord.send_weights()
+    return metric, coord.send_weights()
+
 
 # Function that compares model weights w1 and w2, checking if they are equal to a certain tolerance
 def check_weights(w1, w2, encrypted):
@@ -157,6 +161,7 @@ def check_weights(w1, w2, encrypted):
             # Print relative difference amongst weight elements
             diff = abs((w1[i] - w2[i]) / w1[i] * 100)
             log.debug(f"\t\tDIFF %: {['{:.2f}%'.format(val) for val in diff]}")
+
 
 #Function used to create and fit a list of n_clients on train data trainX
 def create_list_clients(n_clients, trainX, trainY, regression, f_act, enc, spr, ctx, ens_client, coord=None):
@@ -180,6 +185,7 @@ def create_list_clients(n_clients, trainX, trainY, regression, f_act, enc, spr, 
 
     return lst_clients
 
+
 def normalize_dataset(train_data, test_data):
     # Data normalization (z-score): mean 0 and std 1
     log.info("\t\tData normalization (z-score)")
@@ -187,6 +193,7 @@ def normalize_dataset(train_data, test_data):
     trainX = scaler.transform(train_data)
     testX = scaler.transform(test_data)
     return trainX, testX
+
 
 def shuffle_iid(trainX, trainY, iid=True):
     # Number of training and test data
@@ -208,6 +215,7 @@ def shuffle_iid(trainX, trainY, iid=True):
 
     return train_X, train_t
 
+
 def one_hot_encoding(trainY):
     # Number of classes
     n, n_classes = len(trainY), len(np.unique(trainY))
@@ -217,6 +225,7 @@ def one_hot_encoding(trainY):
         t_onehot[i, value] = 1
 
     return t_onehot
+
 
 def split_prepare_dataset(X, y, test_size, preprocess, iid, regression):
     # Traint-Test split
@@ -235,6 +244,7 @@ def split_prepare_dataset(X, y, test_size, preprocess, iid, regression):
     else:
         return train_X, train_t, test_X, test_t
 
+
 # Function to load and prepare MNIST dataset
 def load_mnist_digits(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
@@ -246,6 +256,7 @@ def load_mnist_digits(f_test_size=0.3, b_preprocess=True, b_iid=True):
     # Split, preprocess and encode
     return split_prepare_dataset(X=X_data, y=y_data,
                                  test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
+
 
 # Function to load and prepare the Skin dataset
 def load_skin_dataset(f_test_size=0.3, b_preprocess=True, b_iid=True):
@@ -263,6 +274,7 @@ def load_skin_dataset(f_test_size=0.3, b_preprocess=True, b_iid=True):
     return split_prepare_dataset(X=data, y=target,
                                  test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
 
+
 # Function to load and prepare carbon-nanotube dataset
 def load_carbon_nanotube(f_test_size=0.3, b_preprocess=True):
 
@@ -275,6 +287,7 @@ def load_carbon_nanotube(f_test_size=0.3, b_preprocess=True):
     # Split, preprocess and encode
     return split_prepare_dataset(X=Inputs, y=Targets,
                                  test_size=f_test_size, preprocess=b_preprocess, iid=False, regression=True)
+
 
 # Function to load and prepare Dry_Bean dataset
 def load_dry_bean(f_test_size=0.3, b_preprocess=True, b_iid=True):
@@ -290,6 +303,7 @@ def load_dry_bean(f_test_size=0.3, b_preprocess=True, b_iid=True):
     # Split, preprocess and encode
     return split_prepare_dataset(X=Inputs, y=Labels,
                                  test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
+
 
 def load_mini_boone(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
@@ -309,14 +323,15 @@ def load_mini_boone(f_test_size=0.3, b_preprocess=True, b_iid=True):
     return split_prepare_dataset(X=Inputs, y=Labels,
                                  test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
 
+
 # Function that performs a cross-validation grid-search on a certain classification dataset
 def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, n_splits, bagging,
                                  train_X, train_Y_onehot, train_Y, clients):
     # Hyperparameter search grid
-    lambda_lst          = [0.01, 0.1, 1, 10]
-    n_estimators_lst    = [2, 5, 10, 25, 50, 75, 100, 200]
-    p_samples_lst       = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-    p_features_lst      = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    lambda_lst          = [0.01, 0.1]
+    n_estimators_lst    = [25, 50, 75, 100]
+    p_samples_lst       = [0.2, 0.3, 0.4, 0.5, 0.6]
+    p_features_lst      = [0.7, 0.8, 0.9, 1.0]
 
     # Ensemble method
     if bagging:
@@ -330,16 +345,19 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
     # Pandas dataframe dictionary
     df_dict = {"LAMBDA": [], "N_ESTIMATORS": [], "B_SAMPLES": [], "B_FEATS": [], "P_SAMPLES": [], "P_FEATS": [],
                "METRIC_MEAN": [], "METRIC_STD": []}
+
+    # Intermediate results
+    step = floor(gs_space / 10)
+    progress_iterations = [step * k for k in range(10) if step > 2]
+
     # MAIN LOOP
     for idx, tuple_it in enumerate(gs_it):
         # Construct parameters
         log.info(f"GS ITER {idx+1} of {gs_space}")
         if bagging:
             lam, n_estimators, b_samples, b_feats, p_samples, p_feats = tuple_it
-            ens_client = {'bagging': n_estimators,
-                      'bootstrap_samples': b_samples, 'p_samples': p_samples,
-                      'bootstrap_features': b_feats, 'p_features': p_feats
-                      }
+            ens_client = {'bagging': n_estimators, 'bootstrap_samples': b_samples, 'p_samples': p_samples,
+                          'bootstrap_features': b_feats, 'p_features': p_feats}
             ens_coord = {'bagging'}
         else:
             lam = tuple_it
@@ -361,7 +379,7 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
         acc_glb_splits = []
 
         # CV Loop
-        for it, (train_index, test_index) in  enumerate(cv.split(train_X, train_Y_onehot)):
+        for it, (train_index, test_index) in enumerate(cv.split(train_X, train_Y_onehot)):
 
             # Get split indexes
             log.info(f"\tCross validation split: {it+1}")
@@ -388,6 +406,9 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
             acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator, testX=testX_data, testT=testT_data, regression=False)
             acc_glb_splits.append(acc_glb)
 
+            # Clean coordinator data for the next fold
+            coordinator.clean_coordinator()
+
         # Add results to dataframe dictionary
         df_dict["LAMBDA"].append(lam)
         df_dict["METRIC_MEAN"].append(np.array(acc_glb_splits).mean())
@@ -398,7 +419,15 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
         df_dict["P_SAMPLES"].append(p_samples if bagging else None)
         df_dict["P_FEATS"].append(p_feats if bagging else None)
 
+        # Log intermediate results (in progress)
+        if (idx + 1) in progress_iterations and bagging:
+            pd.set_option("display.precision", 8)
+            df = pd.DataFrame(df_dict)
+            df.sort_values(by="METRIC_MEAN", inplace=True, ascending=False)
+            log.info(f"\tIn progress results ({progress_iterations.index(idx+1) * 10} %):\n{df.head()}")
+
     return df_dict
+
 
 # Function that performs a cross-validation grid-search on a certain regression dataset
 def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_splits,
@@ -421,16 +450,19 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
     # Pandas dataframe dictionary
     df_dict = {"LAMBDA": [], "N_ESTIMATORS": [], "B_SAMPLES": [], "B_FEATS": [], "P_SAMPLES": [], "P_FEATS": [],
                "METRIC_MEAN": [], "METRIC_STD": []}
+
+    # Intermediate results
+    step = floor(gs_space / 10)
+    progress_iterations = [step * k for k in range(10) if step > 2]
+
     # MAIN LOOP
     for idx, tuple_it in enumerate(gs_it):
         # Construct parameters
         log.info(f"GS ITER {idx+1} of {gs_space}")
         if bagging:
             lam, n_estimators, b_samples, b_feats, p_samples, p_feats = tuple_it
-            ens_client = {'bagging': n_estimators,
-                      'bootstrap_samples': b_samples, 'p_samples': p_samples,
-                      'bootstrap_features': b_feats, 'p_features': p_feats
-                      }
+            ens_client = {'bagging': n_estimators, 'bootstrap_samples': b_samples, 'p_samples': p_samples,
+                          'bootstrap_features': b_feats, 'p_features': p_feats}
             ens_coord = {'bagging'}
         else:
             lam = tuple_it
@@ -476,9 +508,11 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
                 lst_clients.append(client)
 
             # Perform fit and predict validation split
-            acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator,
-                                    testX=testX_data, testT=testT_data, regression=True)
+            acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator, testX=testX_data, testT=testT_data, regression=True)
             acc_glb_splits.append(acc_glb)
+
+            # Clean coordinator data for the next fold
+            coordinator.clean_coordinator()
 
         # Add results to dataframe dictionary
         df_dict["LAMBDA"].append(lam)
@@ -490,7 +524,15 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
         df_dict["P_SAMPLES"].append(p_samples if bagging else None)
         df_dict["P_FEATS"].append(p_feats if bagging else None)
 
+        # Log intermediate results (in progress)
+        if (idx + 1) in progress_iterations and bagging:
+            pd.set_option("display.precision", 8)
+            df = pd.DataFrame(df_dict)
+            df.sort_values(by="METRIC_MEAN", inplace=True, ascending=True)
+            log.info(f"\tIn progress results ({progress_iterations.index(idx+1) * 10} %):\n{df.head()}")
+
     return df_dict
+
 
 # Function that exports grid-search-cv results to an Excel file
 def export_dataframe_results(dict_no_bag, dict_bag, dataset_name, regression=False):
