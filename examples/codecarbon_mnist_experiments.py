@@ -14,7 +14,6 @@ Some examples were borrowed from:
 https://github.com/mlco2/codecarbon/blob/master/examples/
 All credit due to the CodeCarbon team.
 """
-import os
 import numpy as np
 import pandas as pd
 from algorithm.fedHEONN_clients import FedHEONN_classifier, FedHEONN_client
