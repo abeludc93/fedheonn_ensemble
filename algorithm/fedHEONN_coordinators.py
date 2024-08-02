@@ -13,8 +13,8 @@ from psutil import cpu_count
 import tenseal as ts
 # Application modules
 from algorithm.activation_functions import _load_act_fn
-from auxiliary.decorators import time_func
 from auxiliary.logger import logger as log
+
 
 class FedHEONN_coordinator:
 
@@ -93,7 +93,6 @@ class FedHEONN_coordinator:
 
         return W_out
 
-    @time_func
     def aggregate(self, M_list, US_list):
         # Aggregates entire M&US lists at once
 
@@ -201,7 +200,6 @@ class FedHEONN_coordinator:
 
         return W
 
-    @time_func
     def aggregate_partial(self, M_list, US_list):
         # Aggregates partial M&US lists of matrix's
 
@@ -344,7 +342,6 @@ class FedHEONN_coordinator:
         # Return data (only for multiprocessing purposes, because pool processes can't modify the original matrix's)
         return M_glb, U_glb, S_glb
 
-    @time_func
     def calculate_weights(self):
         # Calculate weights for the current coordinators M_glb, U_glb and S_glb data
 

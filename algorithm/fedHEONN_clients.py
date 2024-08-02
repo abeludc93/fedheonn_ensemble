@@ -14,8 +14,8 @@ import scipy as sp
 import tenseal as ts
 # Application modules
 from algorithm.activation_functions import _load_act_fn
-from auxiliary.decorators import time_func
 from auxiliary.logger import logger as log
+
 
 # Abstract client
 class FedHEONN_client:
@@ -334,6 +334,7 @@ class FedHEONN_regressor(FedHEONN_client):
         # Convert list to numpy array and return its mean along the 0-axis
         return np.array(list_predictions).mean(axis=0)
 
+
 class FedHEONN_classifier(FedHEONN_client):
     """FedHEONN client for classification tasks"""
     def fit(self, X, t_onehot):
@@ -350,7 +351,6 @@ class FedHEONN_classifier(FedHEONN_client):
         else:
             self.normal_fit(X=X, t=t_onehot)
 
-    @time_func
     def predict(self, X):
         # Transpose test data
         X = self._reshape(X).T

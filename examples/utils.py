@@ -248,10 +248,10 @@ def split_prepare_dataset(X, y, test_size, preprocess, iid, regression):
 # Function to load and prepare MNIST dataset
 def load_mnist_digits(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
-    log.info("[*] MNIST DIGITS DATASET [*]")
     # Load dataset
     digits = load_digits()
     X_data, y_data = digits.data, digits.target
+    log.info(f"[*] MNIST DIGITS DATASET ({len(X_data)} samples) [*]")
 
     # Split, preprocess and encode
     return split_prepare_dataset(X=X_data, y=y_data,
@@ -261,7 +261,6 @@ def load_mnist_digits(f_test_size=0.3, b_preprocess=True, b_iid=True):
 # Function to load and prepare full simplified MNIST dataset
 def load_mnist_digits_full(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
-    log.info("[*] MNIST FULL SIMPLIFIED DIGITS DATASET [*]")
     # Load dataset
     optical_recognition_of_handwritten_digits = fetch_ucirepo(id=80)
 
@@ -270,6 +269,7 @@ def load_mnist_digits_full(f_test_size=0.3, b_preprocess=True, b_iid=True):
     y = optical_recognition_of_handwritten_digits.data.targets
     data = X.to_numpy()
     target = y.to_numpy()
+    log.info(f"[*] MNIST FULL SIMPLIFIED DIGITS DATASET ({len(data)} samples) [*]")
 
     # Split, preprocess and encode
     return split_prepare_dataset(X=data, y=target,
@@ -279,14 +279,15 @@ def load_mnist_digits_full(f_test_size=0.3, b_preprocess=True, b_iid=True):
 # Function to load and prepare the Skin dataset
 def load_skin_dataset(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
-    log.info("[*] SKIN DATASET [*]")
-    # Create and split classification dataset
+    # Fetch and split classification dataset
     skin_segmentation = fetch_ucirepo(id=229)
     X = skin_segmentation.data.features
     y = skin_segmentation.data.targets
     data = X.to_numpy()
     target = y.to_numpy()
-    target = target.reshape(target.shape[0]) - 1 # Target classes original values: 1-2 => Target classes: 0-1
+    # Target classes original values: 1-2 => Target classes: 0-1
+    target = target.reshape(target.shape[0]) - 1
+    log.info(f"[*] SKIN DATASET ({len(data)} samples) [*]")
 
     # Split, preprocess and encode
     return split_prepare_dataset(X=data, y=target,
@@ -296,11 +297,11 @@ def load_skin_dataset(f_test_size=0.3, b_preprocess=True, b_iid=True):
 # Function to load and prepare carbon-nanotube dataset
 def load_carbon_nanotube(f_test_size=0.3, b_preprocess=True):
 
-    log.info("[*] CARBON NANOTUBE DATASET [*]")
     # Read dataset
     Data = pd.read_csv('../datasets/carbon_nanotubes.csv', delimiter=';')
     Inputs = Data.iloc[:, :-3].to_numpy()
     Targets = Data.iloc[:, -3:].to_numpy()  # 3 outputs to predict
+    log.info(f"[*] CARBON NANOTUBE DATASET ({len(Inputs)} samples) [*]")
 
     # Split, preprocess and encode
     return split_prepare_dataset(X=Inputs, y=Targets,
@@ -310,13 +311,13 @@ def load_carbon_nanotube(f_test_size=0.3, b_preprocess=True):
 # Function to load and prepare Dry_Bean dataset
 def load_dry_bean(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
-    log.info("[*] DRY BEAN DATASET [*]")
     # Read dataset
     Data = pd.read_excel('../datasets/Dry_Bean_Dataset.xlsx', sheet_name='Dry_Beans_Dataset')
     Data['Class'] = Data['Class'].map(
         {'BARBUNYA': 0, 'BOMBAY': 1, 'CALI': 2, 'DERMASON': 3, 'HOROZ': 4, 'SEKER': 5, 'SIRA': 6})
     Inputs = Data.iloc[:, :-1].to_numpy()
     Labels = Data.iloc[:, -1].to_numpy()
+    log.info(f"[*] DRY BEAN DATASET ({len(Inputs)} samples) [*]")
 
     # Split, preprocess and encode
     return split_prepare_dataset(X=Inputs, y=Labels,
@@ -325,7 +326,6 @@ def load_dry_bean(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
 def load_mini_boone(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
-    log.info("[*] MINI BOONE DATASET [*]")
     # Read dataset
     with open('../datasets/MiniBooNE_PID.txt') as f:
         first_line = f.readline()
@@ -336,6 +336,7 @@ def load_mini_boone(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
     Inputs = data.to_numpy()
     Labels = np.append(labels_signal, labels_background)
+    log.info(f"[*] MINI BOONE DATASET ({len(Inputs)} samples) [*]")
 
     # Split, preprocess and encode
     return split_prepare_dataset(X=Inputs, y=Labels,
@@ -346,10 +347,10 @@ def load_mini_boone(f_test_size=0.3, b_preprocess=True, b_iid=True):
 def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, n_splits, bagging,
                                  train_X, train_Y_onehot, train_Y, clients):
     # Hyperparameter search grid
-    lambda_lst          = [1, 10]
-    n_estimators_lst    = [2, 5, 10]
-    p_samples_lst       = [0.1, 0.2, 0.3, 0.4, 0.5]
-    p_features_lst      = [0.7, 0.8, 0.9]
+    lambda_lst          = [0.01]
+    n_estimators_lst    = [2, 5, 10, 20]
+    p_samples_lst       = [0.05, 0.1, 0.15]
+    p_features_lst      = [0.5, 0.7, 0.9]
 
     # Ensemble method
     if bagging:
