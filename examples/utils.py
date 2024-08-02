@@ -258,6 +258,24 @@ def load_mnist_digits(f_test_size=0.3, b_preprocess=True, b_iid=True):
                                  test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
 
 
+# Function to load and prepare full simplified MNIST dataset
+def load_mnist_digits_full(f_test_size=0.3, b_preprocess=True, b_iid=True):
+
+    log.info("[*] MNIST FULL SIMPLIFIED DIGITS DATASET [*]")
+    # Load dataset
+    optical_recognition_of_handwritten_digits = fetch_ucirepo(id=80)
+
+    # data (as pandas dataframes)
+    X = optical_recognition_of_handwritten_digits.data.features
+    y = optical_recognition_of_handwritten_digits.data.targets
+    data = X.to_numpy()
+    target = y.to_numpy()
+
+    # Split, preprocess and encode
+    return split_prepare_dataset(X=data, y=target,
+                                 test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
+
+
 # Function to load and prepare the Skin dataset
 def load_skin_dataset(f_test_size=0.3, b_preprocess=True, b_iid=True):
 

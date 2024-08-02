@@ -30,3 +30,5 @@ ucimlrepo==0.0.7
 python-multipart==0.0.9
 # Codecarbon
 codecarbon==2.5.0
+# Tensorflow (only for codecarbon comparison experiments)
+tensorflow==2.17.0

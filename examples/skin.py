@@ -6,11 +6,9 @@ from algorithm.fedHEONN_clients import FedHEONN_classifier, FedHEONN_client
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from auxiliary.decorators import time_func
 from auxiliary.logger import logger as log
-from examples.utils import global_fit, incremental_fit, load_mnist_digits
-from codecarbon import track_emissions
+from examples.utils import global_fit, incremental_fit, load_skin_dataset
 
 
-@track_emissions(project_name="mnist_sklearn", measure_power_secs=10)
 @time_func
 def main():
     # Create the coordinator
@@ -36,12 +34,12 @@ def main():
         lst_clients.append(client)
 
     # PERFORM GLOBAL FIT
-    #acc_glb, w_glb = global_fit(list_clients=lst_clients, coord=coordinator,
-    #                            testX=testX, testT=testY, regression=False)
+    acc_glb, w_glb = global_fit(list_clients=lst_clients, coord=coordinator,
+                                testX=testX, testT=testY, regression=False)
     acc_inc, w_inc = incremental_fit(list_clients=lst_clients, ngroups=n_groups, coord=coordinator,
                                      testX=testX, testT=testY, regression=False, random_groups=rnd)
     # Print model's metrics
-    #log.info(f"Test accuracy global: {acc_glb:0.2f}")
+    log.info(f"Test accuracy global: {acc_glb:0.2f}")
     log.info(f"Test accuracy incremental: {acc_inc:0.2f}")
 
 
@@ -54,11 +52,11 @@ if __name__ == "__main__":
     # Randomize number of clients per group in range (n_groups/2, groups*2)
     rnd = False
     # Encryption
-    enc = True
+    enc = False
     # Sparse matrices
     spr = True
     # Regularization
-    lam = 0.01
+    lam = 10
     # Activation function
     f_act = 'logs'
     # IID or non-IID scenario (True or False)
@@ -66,12 +64,12 @@ if __name__ == "__main__":
     # Preprocess data
     pre = True
     # Ensemble
-    bag = True
+    bag = False
     # Random Patches bagging parameters
-    n_estimators = 8
-    p_samples = 0.65
-    b_samples = False
-    p_feat = 1.0
+    n_estimators = 200
+    p_samples = 0.3
+    b_samples = True
+    p_feat = 0.8
     b_feat = False
     # --------
 
@@ -95,7 +93,7 @@ if __name__ == "__main__":
 
     # Load dataset
     np.random.seed(1)
-    trainX, trainY_onehot, testX, testY, trainY = load_mnist_digits(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
+    trainX, trainY_onehot, testX, testY, trainY = load_skin_dataset(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
 
     # MNIST MAIN FUNCTION
     main()
