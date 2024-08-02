@@ -139,6 +139,7 @@ def sklearn_mlpc(cc_project_name: str, f_act: str = 'relu', n_groups: int = 1):
             predict_Y = model.predict(testX)
             acc = accuracy_score(testY, predict_Y) * 100
             log.info(f"Accuracy TEST incremental MLPC (group {i+1}): {acc:0.2f} %")
+            acc_lst.append(acc)
     finally:
         _ = tracker.stop()
 
