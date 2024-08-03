@@ -203,12 +203,14 @@ if __name__ == "__main__":
     exp_results["MLPC_mnist_orig"] = sklearn_mlpc(cc_project_name="MLPC_mnist_orig")
     exp_results["FEDH_mnist_orig"] = fedheonn(cc_project_name="FEDH_mnist_orig", ctx=ts_ctx, lam=10)
     exp_results["FEDH_mnist_orig_enc"] = fedheonn(cc_project_name="FEDH_mnist_orig_enc", ctx=ts_ctx, lam=10, enc=True)
+    '''
     exp_results["FEDH_mnist_orig_bag_alt"] = fedheonn(cc_project_name="FEDH_mnist_orig_bag_alt", ctx=ts_ctx, lam=0.1,
                                                       bag=True, n_estimators=25, b_samples=True, b_feat=False,
                                                       p_samples=0.2, p_feat=1)
     exp_results["FEDH_mnist_orig_bag_alt_par"] = fedheonn(cc_project_name="FEDH_mnist_orig_bag_alt_par", ctx=ts_ctx, lam=0.1,
                                                           bag=True, n_estimators=25, b_samples=True, b_feat=False,
                                                           p_samples=0.2, p_feat=1, par_client=True, par_coord=True)
+    '''
     exp_results["KERAS_mnist_orig"] = keras_model(cc_project_name="KERAS_mnist_orig")
 
     # Export results

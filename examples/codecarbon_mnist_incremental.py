@@ -131,8 +131,10 @@ def sklearn_mlpc(cc_project_name: str, f_act: str = 'relu', n_groups: int = 1):
         trainY_parts = np.array_split(trainY, n_groups, axis=0)
         for i in range(n_groups):
             # Fit model
+            trainX_accumulated = np.vstack(tuple(trainX_parts[j] for j in range(i+1)))
+            trainY_accumulated = np.vstack(tuple(trainY_parts[j] for j in range(i+1)))
             tracker.start_task(f"fit_group_{i + 1}")
-            model.fit(trainX, trainY)
+            model.fit(trainX_accumulated, trainY_accumulated)
             tracker.stop_task()
 
             # Predict and score
@@ -159,13 +161,13 @@ if __name__ == "__main__":
     np.random.seed(1)
     trainX, trainY_onehot, testX, testY, trainY = load_mnist_digits_full(f_test_size=0.3, b_preprocess=True, b_iid=True)
 
-    exp_results["FEDHEONN_incremental"] = fedheonn(cc_project_name="FEDHEONN_incremental", ctx=ts_ctx, lam=10,
-                                                   n_clients=2, n_groups=1)
-    exp_results["FEDH_incremental_bagging"] = fedheonn(cc_project_name="FEDH_incremental_bagging", ctx=ts_ctx, lam=0.1,
-                                                       bag=True, n_estimators=25, b_samples=True, b_feat=False,
-                                                       p_samples=0.2, p_feat=1,
-                                                       n_clients=2, n_groups=1)
-    exp_results["MLPC_incremental"] = sklearn_mlpc(cc_project_name="MLPC_incremental", n_groups=2)
+    exp_results["FEDHEONN_incremental_12_4"] = fedheonn(cc_project_name="FEDHEONN_incremental_12_4", ctx=ts_ctx, lam=10,
+                                                        n_clients=12, n_groups=4)
+    exp_results["FEDH_incremental_bagging_12_4"] = fedheonn(cc_project_name="FEDH_incremental_bagging_12_4", ctx=ts_ctx,
+                                                            lam=0.1,bag=True, n_estimators=25, b_samples=True,
+                                                            b_feat=False, p_samples=0.2, p_feat=1, n_clients=12,
+                                                            n_groups=4)
+    exp_results["MLPC_incremental_4"] = sklearn_mlpc(cc_project_name="MLPC_incremental_4", n_groups=3)
 
     # Export results
     pd.set_option("display.precision", 8)
