@@ -188,7 +188,6 @@ class FedHEONN_client:
         self.W = W_orig
         return predictions
 
-
     def get_param(self):
         return self.M, self.US
 
