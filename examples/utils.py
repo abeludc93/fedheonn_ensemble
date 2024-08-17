@@ -69,7 +69,7 @@ def group_clients(list_clients, ngroups, randomize=False):
     if not randomize:
         # Group clients
         for i in range(0, len(list_clients), ngroups):
-            log.debug(f"\t\tGrouping clients: ({i}:{i + ngroups})")
+            log.info(f"\t\tGrouping clients: ({i}:{i + ngroups})")
             group = list_clients[i:i + ngroups]
             groups.append(group)
     else:
@@ -79,7 +79,7 @@ def group_clients(list_clients, ngroups, randomize=False):
             n_groups_rnd = randint(ngroups // 2, 2 * ngroups)
             if idx + n_groups_rnd > len(list_clients):
                 n_groups_rnd = len(list_clients) - idx
-            log.debug(f"\t\tGrouping clients randomly: ({idx}:{idx + n_groups_rnd})")
+            log.info(f"\t\tGrouping clients randomly: ({idx}:{idx + n_groups_rnd})")
             group = list_clients[idx:idx + n_groups_rnd]
             groups.append(group)
             idx += n_groups_rnd
@@ -104,7 +104,7 @@ def get_params_group(group):
 # returning the mean squared error and optimal weights on the test data
 def incremental_fit(list_clients, coord, ngroups, testX, testT, regression=True, random_groups=False):
     # Flag to make predictions after incrementally processing each group
-    debug = False
+    debug = True
     # Shuffle client list
     shuffle(list_clients)
     # Group clients
@@ -117,7 +117,8 @@ def incremental_fit(list_clients, coord, ngroups, testX, testT, regression=True,
         if debug:
             coord.calculate_weights()
             metric_debug = get_prediction(list_clients[0], coord, testX, testT, regression=regression)
-            log.debug(f"\t\tTest MSE incremental (group {ig+1}): {metric_debug:0.4f}")
+            log.debug(f"\t\tTest MSE incremental (group {ig+1}): {metric_debug:0.2f} %")
+
     # Calculate opt. weights
     coord.calculate_weights()
     # Metrics

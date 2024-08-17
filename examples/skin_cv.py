@@ -10,7 +10,7 @@ from examples.utils import global_fit, incremental_fit, load_skin_dataset
 from auxiliary.logger import logger as log
 
 
-@time_func
+#@time_func
 def main():
     # Create the coordinator
     coordinator = FedHEONN_coordinator(f=f_act, lam=lam, encrypted=enc, ensemble=ens_coord)
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     n_estimators = 2
     p_samples = 0.1
     b_samples = False
-    p_feat = 0.8
+    p_feat = 0.7
     b_feat = True
     # Cross-validation
     kfold = True

@@ -42,6 +42,7 @@ def main():
     log.info(f"Test accuracy global: {acc_glb:0.2f}")
     #log.info(f"Test accuracy incremental: {acc_inc:0.2f}")
 
+
 if __name__ == "__main__":
     # ---- MODEL HYPERPARAMETERS----
     # Number of clients
@@ -59,8 +60,8 @@ if __name__ == "__main__":
     # Preprocess data
     pre = True
     # Parallelized
-    par = True
-    par_coord = True
+    par = False
+    par_coord = False
     # Ensemble
     bag = True
     # Random Patches bagging parameters
@@ -74,11 +75,7 @@ if __name__ == "__main__":
     ctx = None
     if enc:
         import tenseal as ts
-        ctx = ts.context(
-            ts.SCHEME_TYPE.CKKS,
-            poly_modulus_degree=32768,
-            coeff_mod_bit_sizes=[60, 40, 40, 60]
-        )
+        ctx = ts.context(ts.SCHEME_TYPE.CKKS, poly_modulus_degree=32768, coeff_mod_bit_sizes=[60, 40, 40, 60])
         ctx.generate_galois_keys()
         ctx.global_scale = 2 ** 40
     # Prepare ensemble dictionaries

@@ -10,7 +10,7 @@ from examples.utils import global_fit, incremental_fit, load_mnist_digits
 from auxiliary.logger import logger as log
 
 
-@time_func
+#@time_func
 def main():
     # Create the coordinator
     coordinator = FedHEONN_coordinator(f=f_act, lam=lam, encrypted=enc, ensemble=ens_coord)

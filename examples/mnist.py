@@ -39,16 +39,16 @@ def main():
     acc_inc, w_inc = incremental_fit(list_clients=lst_clients, ngroups=n_groups, coord=coordinator,
                                      testX=testX, testT=testY, regression=False, random_groups=rnd)
     # Print model's metrics
-    log.info(f"Test accuracy global: {acc_glb:0.2f}")
-    log.info(f"Test accuracy incremental: {acc_inc:0.2f}")
+    log.info(f"Test accuracy global: {acc_glb:0.2f} %")
+    log.info(f"Test accuracy incremental: {acc_inc:0.2f} %")
 
 
 if __name__ == "__main__":
     # ---- MODEL HYPERPARAMETERS----
     # Number of clients
-    n_clients = 1
+    n_clients = 10
     # Number of clients per group
-    n_groups = 1
+    n_groups = 2
     # Randomize number of clients per group in range (n_groups/2, groups*2)
     rnd = False
     # Encryption
