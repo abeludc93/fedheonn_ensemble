@@ -102,10 +102,11 @@ def fedheonn(cc_project_name: str,  # CodeCarbon project name
             tracker.start_task(f"calc_optim_weights_group_{ig + 1}")
             coordinator.calculate_weights()
             tracker.stop_task()
-
+            tracker.start_task(f"predict_{ig + 1}")
             acc = get_prediction(lst_clients[0].client, coordinator, testX, testY, regression=False)
             log.info(f"\tAccuracy TEST incremental (group {ig+1}): {acc:0.2f}")
             acc_lst.append(acc)
+            tracker.stop_task()
     finally:
         _ = tracker.stop()
 

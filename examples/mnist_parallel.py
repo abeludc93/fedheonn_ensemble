@@ -35,12 +35,12 @@ def main():
 
     # PERFORM GLOBAL FIT
     acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator, testX=testX, testT=testY, regression=False)
-    #acc_inc, _ = incremental_fit(list_clients=lst_clients, coord=coordinator, ngroups=2, testX=testX, testT=testY,
-    #                             regression=False, random_groups=False)
+    acc_inc, _ = incremental_fit(list_clients=lst_clients, coord=coordinator, ngroups=2, testX=testX, testT=testY,
+                                 regression=False, random_groups=False)
 
     # Print model's metrics
     log.info(f"Test accuracy global: {acc_glb:0.2f}")
-    #log.info(f"Test accuracy incremental: {acc_inc:0.2f}")
+    log.info(f"Test accuracy incremental: {acc_inc:0.2f}")
 
 
 if __name__ == "__main__":
@@ -60,12 +60,13 @@ if __name__ == "__main__":
     # Preprocess data
     pre = True
     # Parallelized
-    par = False
-    par_coord = False
+    par_both = True
+    par = par_both
+    par_coord = par_both
     # Ensemble
     bag = True
     # Random Patches bagging parameters
-    n_estimators = 25
+    n_estimators = 50
     p_samples = 1.0
     b_samples = False
     p_feat = 1.0

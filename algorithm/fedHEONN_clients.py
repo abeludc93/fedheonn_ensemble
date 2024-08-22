@@ -15,7 +15,7 @@ import tenseal as ts
 # Application modules
 from algorithm.activation_functions import _load_act_fn
 from auxiliary.logger import logger as log
-
+from auxiliary.decorators import time_func
 
 # Abstract client
 class FedHEONN_client:
@@ -143,7 +143,7 @@ class FedHEONN_client:
                     # Append to master M&US matrix's
                     self.M.append(M_e)
                     self.US.append(US_e)
-            log.debug(f"\t\tParallelized ({n_processes}) bagging fitting done in: {time.perf_counter() - t_ini:.3f} s")
+            log.info(f"\t\tParallelized ({n_processes}) bagging fitting done in: {time.perf_counter() - t_ini:.3f} s")
 
         else:
 
@@ -336,6 +336,7 @@ class FedHEONN_regressor(FedHEONN_client):
 
 class FedHEONN_classifier(FedHEONN_client):
     """FedHEONN client for classification tasks"""
+    #@time_func
     def fit(self, X, t_onehot):
         # Transpose and reshape train data
         X, t_onehot = self._preprocess(X, t_onehot)

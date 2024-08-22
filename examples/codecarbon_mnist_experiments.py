@@ -171,7 +171,6 @@ if __name__ == "__main__":
     np.random.seed(1)
     trainX, trainY_onehot, testX, testY, trainY = load_mnist_digits(f_test_size=0.3, b_preprocess=True, b_iid=True)
 
-    exp_results["MLPC_mnist"] = sklearn_mlpc(cc_project_name="MLPC_mnist")
     exp_results["FEDH_mnist"] = fedheonn(cc_project_name="FEDH_mnist", ctx=ts_ctx, lam=10)
     exp_results["FEDH_mnist_enc"] = fedheonn(cc_project_name="FEDH_mnist_enc", ctx=ts_ctx, lam=10, enc=True)
     exp_results["FEDH_mnist_bag_best"] = fedheonn(cc_project_name="FEDH_mnist_bag_best", ctx=ts_ctx, lam=0.01,
@@ -180,13 +179,12 @@ if __name__ == "__main__":
     exp_results["FEDH_mnist_bag_alt"] = fedheonn(cc_project_name="FEDH_mnist_bag_alt", ctx=ts_ctx, lam=0.1,
                                                  bag=True, n_estimators=25, b_samples=True, b_feat=False,
                                                  p_samples=0.2, p_feat=1)
-
+    exp_results["MLPC_mnist"] = sklearn_mlpc(cc_project_name="MLPC_mnist")
 
     # Load entire simplified MNIST dataset from sklearn - 5620 samples
     np.random.seed(1)
     trainX, trainY_onehot, testX, testY, trainY = load_mnist_digits_full(f_test_size=0.3, b_preprocess=True, b_iid=True)
 
-    exp_results["MLPC_mnist_full"] = sklearn_mlpc(cc_project_name="MLPC_mnist_full")
     exp_results["FEDH_mnist_full"] = fedheonn(cc_project_name="FEDH_mnist_full", ctx=ts_ctx, lam=10)
     exp_results["FEDH_mnist_full_enc"] = fedheonn(cc_project_name="FEDH_mnist_full_enc", ctx=ts_ctx, lam=10, enc=True)
     exp_results["FEDH_mnist_full_bag_best"] = fedheonn(cc_project_name="FEDH_mnist_full_bag_best", ctx=ts_ctx, lam=0.01,
@@ -195,12 +193,12 @@ if __name__ == "__main__":
     exp_results["FEDH_mnist_full_bag_alt"] = fedheonn(cc_project_name="FEDH_mnist_full_bag_alt", ctx=ts_ctx, lam=0.1,
                                                       bag=True, n_estimators=25, b_samples=True, b_feat=False,
                                                       p_samples=0.2, p_feat=1)
-
+    exp_results["MLPC_mnist_full"] = sklearn_mlpc(cc_project_name="MLPC_mnist_full")
+    
     # Load entire simplified MNIST dataset from sklearn - 70000 samples
     np.random.seed(1)
     trainX, trainY_onehot, testX, testY, trainY = load_original_mnist(b_preprocess=True, b_iid=True)
 
-    exp_results["MLPC_mnist_orig"] = sklearn_mlpc(cc_project_name="MLPC_mnist_orig")
     exp_results["FEDH_mnist_orig"] = fedheonn(cc_project_name="FEDH_mnist_orig", ctx=ts_ctx, lam=10)
     exp_results["FEDH_mnist_orig_enc"] = fedheonn(cc_project_name="FEDH_mnist_orig_enc", ctx=ts_ctx, lam=10, enc=True)
     '''
@@ -211,6 +209,7 @@ if __name__ == "__main__":
                                                           bag=True, n_estimators=25, b_samples=True, b_feat=False,
                                                           p_samples=0.2, p_feat=1, par_client=True, par_coord=True)
     '''
+    exp_results["MLPC_mnist_orig"] = sklearn_mlpc(cc_project_name="MLPC_mnist_orig")
     exp_results["KERAS_mnist_orig"] = keras_model(cc_project_name="KERAS_mnist_orig")
 
     # Export results

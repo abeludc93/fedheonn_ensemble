@@ -23,6 +23,7 @@ from ucimlrepo import fetch_ucirepo
 # Application modules
 from algorithm.fedHEONN_clients import FedHEONN_classifier, FedHEONN_regressor
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
+from auxiliary.decorators import time_func
 from auxiliary.logger import logger as log
 
 
@@ -102,9 +103,10 @@ def get_params_group(group):
 
 # Function that performs an 'incremental' fit on the given list of clients, aggregating then as sequential batches and
 # returning the mean squared error and optimal weights on the test data
+@time_func
 def incremental_fit(list_clients, coord, ngroups, testX, testT, regression=True, random_groups=False):
     # Flag to make predictions after incrementally processing each group
-    debug = True
+    debug = False
     # Shuffle client list
     shuffle(list_clients)
     # Group clients
@@ -129,6 +131,7 @@ def incremental_fit(list_clients, coord, ngroups, testX, testT, regression=True,
 
 # Function that performs a 'global' fit on the given list of clients, aggregating them separately and returning the
 # metric and optimal weights on the test data
+@time_func
 def global_fit(list_clients, coord, testX, testT, regression=True):
     # Shuffle client list
     shuffle(list_clients)
