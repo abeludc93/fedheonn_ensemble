@@ -15,8 +15,7 @@ import tenseal as ts
 
 def experiments():
 
-    #n_estimators_lst    = [2, 5, 10, 25, 50, 75, 100, 150, 200]
-    n_estimators_lst = [2, 5]
+    n_estimators_lst    = [2, 5, 10, 25, 50, 75, 100, 150, 200]
     p_sf_lst = [0.5, 1]
     parallel_lst = [True, False]
 
