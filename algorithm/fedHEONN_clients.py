@@ -320,7 +320,7 @@ class FedHEONN_regressor(FedHEONN_client):
         # Fit data
         if self.ensemble and "bagging" in self.ensemble:
             n_estimators = self.ensemble["bagging"]
-            assert  n_estimators > 1
+            assert n_estimators > 1
             predictions = self.bagging_predict(X, n_estimators=n_estimators)
             y = self.simple_mean(predictions)
         else:
