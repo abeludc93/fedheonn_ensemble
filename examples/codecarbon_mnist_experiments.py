@@ -181,6 +181,7 @@ if __name__ == "__main__":
                                                  p_samples=0.2, p_feat=1)
     exp_results["MLPC_mnist"] = sklearn_mlpc(cc_project_name="MLPC_mnist")
 
+    """
     # Load entire simplified MNIST dataset from sklearn - 5620 samples
     np.random.seed(1)
     trainX, trainY_onehot, testX, testY, trainY = load_mnist_digits_full(f_test_size=0.3, b_preprocess=True, b_iid=True)
@@ -211,7 +212,7 @@ if __name__ == "__main__":
     '''
     exp_results["MLPC_mnist_orig"] = sklearn_mlpc(cc_project_name="MLPC_mnist_orig")
     exp_results["KERAS_mnist_orig"] = keras_model(cc_project_name="KERAS_mnist_orig")
-
+    """
     # Export results
     pd.set_option("display.precision", 8)
     df = pd.DataFrame(exp_results.items(), columns=['Experiment', 'Accuracy'])

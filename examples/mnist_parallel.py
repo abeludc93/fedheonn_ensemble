@@ -7,6 +7,7 @@ from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from auxiliary.decorators import time_func
 from auxiliary.logger import logger as log
 from examples.utils import global_fit, incremental_fit, load_mnist_digits
+from time import perf_counter
 
 
 @time_func
@@ -30,8 +31,11 @@ def main():
         if ens_client:
             client.set_idx_feats(coordinator.send_idx_feats())
         # Fit client local data
+        t_ini = perf_counter()
         client.fit(trainX[rang], trainY_onehot[rang])
+        t_end = perf_counter()
         lst_clients.append(client)
+        print(f"[FIT CLIENT {i+1}]: {t_end-t_ini:.2f} s")
 
     # PERFORM GLOBAL FIT
     acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator, testX=testX, testT=testY, regression=False)
@@ -91,4 +95,5 @@ if __name__ == "__main__":
     trainX, trainY_onehot, testX, testY, trainY = load_mnist_digits(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
 
     # Parallel MAIN FUNCTION
+    print(f"PARALLEL: {par_both}")
     main()

@@ -5,12 +5,10 @@ import numpy as np
 from sklearn.model_selection import ShuffleSplit, KFold
 from algorithm.fedHEONN_clients import FedHEONN_classifier
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
-from auxiliary.decorators import time_func
-from examples.utils import global_fit, incremental_fit, load_skin_dataset
+from examples.utils import global_fit, load_dry_bean
 from auxiliary.logger import logger as log
 
 
-#@time_func
 def main():
     # Create the coordinator
     coordinator = FedHEONN_coordinator(f=f_act, lam=lam, encrypted=enc, ensemble=ens_coord)
@@ -53,22 +51,18 @@ def main():
         # Perform fit and predict validation split
         acc_glb, w_glb = global_fit(list_clients=lst_clients, coord=coordinator,
                                     testX=testX_data, testT=testT_data, regression=False)
-        #acc_inc, w_inc = incremental_fit(list_clients=lst_clients, ngroups=n_groups, coord=coordinator,
-        #                                 testX=testX_data, testT=testT_data, regression=False, random_groups=rnd)
+
         # Save results
         acc_glb_splits.append(acc_glb)
         w_glb_splits.append(w_glb)
-        #acc_inc_splits.append(acc_inc)
-        #w_inc_splits.append(w_inc)
+
         # Print cross-validation metrics
         log.debug(f"Validation accuracy global: {acc_glb:0.2f}")
-        #log.debug(f"Validation accuracy incremental: {acc_inc:0.2f}")
 
         # Clean coordinator data for the next fold
         coordinator.clean_coordinator()
 
     log.info(f"CV ACCURACY GLOBAL: MEAN {np.array(acc_glb_splits).mean():.2f} % - STD: {np.array(acc_glb_splits).std():.2f}")
-    #log.info(f"CV ACCURACY INC   : MEAN {np.array(acc_inc_splits).mean():.2f} % - STD: {np.array(acc_inc_splits).std():.2f}")
 
 
 if __name__ == "__main__":
@@ -94,11 +88,11 @@ if __name__ == "__main__":
     # Ensemble
     bag = True
     # Random Patches bagging parameters
-    n_estimators = 2
-    p_samples = 0.1
-    b_samples = False
-    p_feat = 0.7
-    b_feat = True
+    n_estimators = 10
+    p_samples = 0.8
+    b_samples = True
+    p_feat = 1
+    b_feat = False
     # Cross-validation
     kfold = True
     split = 10
@@ -127,6 +121,6 @@ if __name__ == "__main__":
 
     # Load dataset
     np.random.seed(1)
-    trainX, trainY_onehot, testX, testY, trainY = load_skin_dataset(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
+    trainX, trainY_onehot, testX, testY, trainY = load_dry_bean(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
     # CROSS VALIDATION MAIN FUNCTION
     main()
