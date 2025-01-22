@@ -23,8 +23,8 @@ from ucimlrepo import fetch_ucirepo
 # Application modules
 from algorithm.fedHEONN_clients import FedHEONN_classifier, FedHEONN_regressor
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
-from auxiliary.decorators import time_func
 from auxiliary.logger import logger as log
+from time import perf_counter
 
 
 # Seed random numbers
@@ -103,7 +103,6 @@ def get_params_group(group):
 
 # Function that performs an 'incremental' fit on the given list of clients, aggregating then as sequential batches and
 # returning the mean squared error and optimal weights on the test data
-@time_func
 def incremental_fit(list_clients, coord, ngroups, testX, testT, regression=True, random_groups=False):
     # Flag to make predictions after incrementally processing each group
     debug = False
@@ -131,7 +130,6 @@ def incremental_fit(list_clients, coord, ngroups, testX, testT, regression=True,
 
 # Function that performs a 'global' fit on the given list of clients, aggregating them separately and returning the
 # metric and optimal weights on the test data
-@time_func
 def global_fit(list_clients, coord, testX, testT, regression=True):
     # Shuffle client list
     shuffle(list_clients)
@@ -373,9 +371,11 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
     progress_iterations = [step * k for k in range(10) if step > 2]
 
     # MAIN LOOP
+    n_estimators, b_samples, b_feats, p_samples, p_feats = None, None, None, None, None
     for idx, tuple_it in enumerate(gs_it):
+        t_iter = perf_counter()
+
         # Construct parameters
-        log.info(f"GS ITER {idx+1} of {gs_space}")
         if bagging:
             lam, n_estimators, b_samples, b_feats, p_samples, p_feats = tuple_it
             ens_client = {'bagging': n_estimators, 'bootstrap_samples': b_samples, 'p_samples': p_samples,
@@ -404,7 +404,6 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
         for it, (train_index, test_index) in enumerate(cv.split(train_X, train_Y_onehot)):
 
             # Get split indexes
-            log.info(f"\tCross validation split: {it+1}")
             trainX_data, trainT_data = train_X[train_index], train_Y_onehot[train_index]
             testX_data, testT_data = train_X[test_index], train_Y[test_index]
             n_split = trainT_data.shape[0]
@@ -441,6 +440,8 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
         df_dict["P_SAMPLES"].append(p_samples if bagging else None)
         df_dict["P_FEATS"].append(p_feats if bagging else None)
 
+        # Log iteration
+        log.info(f"GS ITER {idx + 1} of {gs_space} ({perf_counter()-t_iter:.2f} s)")
         # Log intermediate results (in progress)
         if (idx + 1) in progress_iterations and bagging:
             pd.set_option("display.precision", 8)
@@ -452,8 +453,7 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
 
 
 # Function that performs a cross-validation grid-search on a certain regression dataset
-def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_splits,
-                             bagging, train_X, train_Y, clients):
+def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_splits, bagging, train_X, train_Y, clients):
     # Hyperparameter search grid
     lambda_lst          = [0.01, 0.1, 1, 10]
     n_estimators_lst    = [2, 5, 10, 25, 50, 75, 100, 200]
@@ -478,9 +478,11 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
     progress_iterations = [step * k for k in range(10) if step > 2]
 
     # MAIN LOOP
+    n_estimators, b_samples, b_feats, p_samples, p_feats = None, None, None, None, None
     for idx, tuple_it in enumerate(gs_it):
+        t_iter = perf_counter()
+
         # Construct parameters
-        log.info(f"GS ITER {idx+1} of {gs_space}")
         if bagging:
             lam, n_estimators, b_samples, b_feats, p_samples, p_feats = tuple_it
             ens_client = {'bagging': n_estimators, 'bootstrap_samples': b_samples, 'p_samples': p_samples,
@@ -509,7 +511,6 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
         for it, (train_index, test_index) in  enumerate(cv.split(train_X, train_Y)):
 
             # Get split indexes
-            log.info(f"\tCross validation split: {it+1}")
             trainX_data, trainT_data = train_X[train_index], train_Y[train_index]
             testX_data, testT_data = train_X[test_index], train_Y[test_index]
             n_split = trainT_data.shape[0]
@@ -546,6 +547,8 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
         df_dict["P_SAMPLES"].append(p_samples if bagging else None)
         df_dict["P_FEATS"].append(p_feats if bagging else None)
 
+        # Log iteration
+        log.info(f"GS ITER {idx + 1} of {gs_space} ({perf_counter()-t_iter:.2f} s)")
         # Log intermediate results (in progress)
         if (idx + 1) in progress_iterations and bagging:
             pd.set_option("display.precision", 8)
