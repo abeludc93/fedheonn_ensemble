@@ -27,10 +27,6 @@ from auxiliary.logger import logger as log
 from time import perf_counter
 
 
-# Seed random numbers
-seed(1)
-
-
 # Function that yields an iterator with the cartesian product of the given iterables
 def generate_grid_search_iterator(lambda_grid, n_estimators_grid,
                                   p_samples_grid=None, p_features_grid=None,
@@ -165,7 +161,7 @@ def check_weights(w1, w2, encrypted):
             log.debug(f"\t\tDIFF %: {['{:.2f}%'.format(val) for val in diff]}")
 
 
-#Function used to create and fit a list of n_clients on train data trainX
+# Function used to create and fit a list of n_clients on train data trainX
 def create_list_clients(n_clients, trainX, trainY, regression, f_act, enc, spr, ctx, ens_client, coord=None):
     n = len(trainY)
     # Create a list of clients and fit clients with their local data
