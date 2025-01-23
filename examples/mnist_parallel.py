@@ -7,6 +7,7 @@ from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from auxiliary.decorators import time_func
 from auxiliary.logger import logger as log
 from examples.utils import global_fit, incremental_fit, load_mnist_digits
+from time import perf_counter
 
 
 @time_func
@@ -30,17 +31,21 @@ def main():
         if ens_client:
             client.set_idx_feats(coordinator.send_idx_feats())
         # Fit client local data
+        t_ini = perf_counter()
         client.fit(trainX[rang], trainY_onehot[rang])
+        t_end = perf_counter()
         lst_clients.append(client)
+        print(f"[FIT CLIENT {i+1}]: {t_end-t_ini:.2f} s")
 
     # PERFORM GLOBAL FIT
     acc_glb, _ = global_fit(list_clients=lst_clients, coord=coordinator, testX=testX, testT=testY, regression=False)
-    #acc_inc, _ = incremental_fit(list_clients=lst_clients, coord=coordinator, ngroups=2, testX=testX, testT=testY,
-    #                             regression=False, random_groups=False)
+    acc_inc, _ = incremental_fit(list_clients=lst_clients, coord=coordinator, ngroups=2, testX=testX, testT=testY,
+                                 regression=False, random_groups=False)
 
     # Print model's metrics
     log.info(f"Test accuracy global: {acc_glb:0.2f}")
-    #log.info(f"Test accuracy incremental: {acc_inc:0.2f}")
+    log.info(f"Test accuracy incremental: {acc_inc:0.2f}")
+
 
 if __name__ == "__main__":
     # ---- MODEL HYPERPARAMETERS----
@@ -59,12 +64,13 @@ if __name__ == "__main__":
     # Preprocess data
     pre = True
     # Parallelized
-    par = True
-    par_coord = True
+    par_both = True
+    par = par_both
+    par_coord = par_both
     # Ensemble
     bag = True
     # Random Patches bagging parameters
-    n_estimators = 25
+    n_estimators = 50
     p_samples = 1.0
     b_samples = False
     p_feat = 1.0
@@ -74,11 +80,7 @@ if __name__ == "__main__":
     ctx = None
     if enc:
         import tenseal as ts
-        ctx = ts.context(
-            ts.SCHEME_TYPE.CKKS,
-            poly_modulus_degree=32768,
-            coeff_mod_bit_sizes=[60, 40, 40, 60]
-        )
+        ctx = ts.context(ts.SCHEME_TYPE.CKKS, poly_modulus_degree=32768, coeff_mod_bit_sizes=[60, 40, 40, 60])
         ctx.generate_galois_keys()
         ctx.global_scale = 2 ** 40
     # Prepare ensemble dictionaries
@@ -93,4 +95,5 @@ if __name__ == "__main__":
     trainX, trainY_onehot, testX, testY, trainY = load_mnist_digits(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
 
     # Parallel MAIN FUNCTION
+    print(f"PARALLEL: {par_both}")
     main()
