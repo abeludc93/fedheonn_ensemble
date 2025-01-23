@@ -56,6 +56,7 @@ def _load_act_fn(fn: str = "linear") -> (Callable, Callable, Callable):
     elif fn == "relu":
         return relu, inv_relu, der_relu
     elif fn == "logs":
-        return logsig, inv_logsig, logsig
+        #return logsig, inv_logsig, logsig
+        return logsig, inv_logsig, der_logsig
     else:
         raise ValueError(f"Activation function unknown: {fn}")
