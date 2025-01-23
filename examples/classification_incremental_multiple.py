@@ -116,8 +116,8 @@ acc_glb, w_glb = global_fit(list_clients=lst1_clients, coord=coordinator,
 acc_inc, w_inc = incremental_fit(list_clients=lst2_clients, ngroups=n_groups, coord=coordinator,
                                  testX=test_X, testT=test_t, regression=False, random_groups=rnd)
 # Print model's metrics
-print(f"Test MSE global: {acc_glb:0.8f}")
-print(f"Test MSE incremental: {acc_inc:0.8f}")
+print(f"Test MSE global: {acc_glb:0.2f} %")
+print(f"Test MSE incremental: {acc_inc:0.2f} %")
 # Check if weights from both models are equal
 for i in range(len(w_glb)):
     # If encrypted, decrypt data

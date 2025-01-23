@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 """
-Example of using FedHEONN method for a classification task, with and without incremental grouping..
+Example of using FedHEONN method for a classification task, with and without incremental grouping.
 """
 # Author: Oscar Fontenla-Romero <oscar.fontenla@udc.es>
 # License: GPL-3.0-only
@@ -20,7 +20,7 @@ n_clients = 1000
 # Number of clients per group
 n_groups = 100
 # Randomize number of clients per group in range (n_groups/2, groups*2)
-rnd = True
+rnd = False
 # Encryption
 enc = False
 # Sparse matrices
@@ -102,11 +102,12 @@ for i in range(0, n_clients):
 # PERFORM GLOBAL AND INCREMENTAL FIT
 acc_glb, w_glb = global_fit(list_clients=lst_clients, coord=coordinator,
                             testX=test_X, testT=test_t, regression=False)
+coordinator.clean_coordinator()
 acc_inc, w_inc = incremental_fit(list_clients=lst_clients, ngroups=n_groups, coord=coordinator,
                                  testX=test_X, testT=test_t, regression=False, random_groups=rnd)
 # Print model's metrics
-print(f"Test accuracy global: {acc_glb:0.2f}")
-print(f"Test accuracy incremental: {acc_inc:0.2f}")
+print(f"Test accuracy global: {acc_glb:0.2f} %")
+print(f"Test accuracy incremental: {acc_inc:0.2f} %")
 # Check if weights from both models are equal
 for i in range(len(w_glb)):
     # If encrypted, decrypt data

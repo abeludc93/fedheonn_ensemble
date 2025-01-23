@@ -5,6 +5,7 @@ from api.utils import ServerError
 from auxiliary.config_loader import load_config
 import tenseal as ts
 
+
 def setup_server():
     cfg = load_config()
 

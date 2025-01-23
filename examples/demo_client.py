@@ -53,13 +53,16 @@ def setup_client():
 
     return client, fed_client
 
+
 def fetch_train_data_client(srv_client):
     # Change accordingly on each embedded client
     client_train_size = 300
     return srv_client.fetch_dataset(client_train_size)
 
+
 def fetch_test_data_client(srv_client):
     return srv_client.fetch_dataset_test()
+
 
 def train_client(client, fed_client):
     train_x, train_y = fetch_train_data_client(client)
@@ -76,9 +79,11 @@ def train_client(client, fed_client):
     print(f"{response}: {data_id}")
     return data_id
 
+
 def check_status(client, data_id):
     while input("Check queue status of partial data? (y/n): ").lower().startswith("y"):
         print(client.check_aggregate_status(data_id))
+
 
 def predict_test(client, fed_client):
     test_x, test_y = fetch_test_data_client(client)
