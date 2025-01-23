@@ -24,10 +24,7 @@ from ucimlrepo import fetch_ucirepo
 from algorithm.fedHEONN_clients import FedHEONN_classifier, FedHEONN_regressor
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
 from auxiliary.logger import logger as log
-
-
-# Seed random numbers
-seed(1)
+from time import perf_counter
 
 
 # Function that yields an iterator with the cartesian product of the given iterables
@@ -69,7 +66,7 @@ def group_clients(list_clients, ngroups, randomize=False):
     if not randomize:
         # Group clients
         for i in range(0, len(list_clients), ngroups):
-            log.debug(f"\t\tGrouping clients: ({i}:{i + ngroups})")
+            log.info(f"\t\tGrouping clients: ({i}:{i + ngroups})")
             group = list_clients[i:i + ngroups]
             groups.append(group)
     else:
@@ -79,7 +76,7 @@ def group_clients(list_clients, ngroups, randomize=False):
             n_groups_rnd = randint(ngroups // 2, 2 * ngroups)
             if idx + n_groups_rnd > len(list_clients):
                 n_groups_rnd = len(list_clients) - idx
-            log.debug(f"\t\tGrouping clients randomly: ({idx}:{idx + n_groups_rnd})")
+            log.info(f"\t\tGrouping clients randomly: ({idx}:{idx + n_groups_rnd})")
             group = list_clients[idx:idx + n_groups_rnd]
             groups.append(group)
             idx += n_groups_rnd
@@ -117,7 +114,8 @@ def incremental_fit(list_clients, coord, ngroups, testX, testT, regression=True,
         if debug:
             coord.calculate_weights()
             metric_debug = get_prediction(list_clients[0], coord, testX, testT, regression=regression)
-            log.debug(f"\t\tTest MSE incremental (group {ig+1}): {metric_debug:0.4f}")
+            log.debug(f"\t\tTest MSE incremental (group {ig+1}): {metric_debug:0.2f} %")
+
     # Calculate opt. weights
     coord.calculate_weights()
     # Metrics
@@ -163,7 +161,7 @@ def check_weights(w1, w2, encrypted):
             log.debug(f"\t\tDIFF %: {['{:.2f}%'.format(val) for val in diff]}")
 
 
-#Function used to create and fit a list of n_clients on train data trainX
+# Function used to create and fit a list of n_clients on train data trainX
 def create_list_clients(n_clients, trainX, trainY, regression, f_act, enc, spr, ctx, ens_client, coord=None):
     n = len(trainY)
     # Create a list of clients and fit clients with their local data
@@ -208,7 +206,6 @@ def shuffle_iid(trainX, trainY, iid=True):
         # Data are shuffled in case they come ordered by class
         log.info('\t\tIID scenario')
         ind_list = list(range(n))
-        np.random.seed(1)
         np.random.shuffle(ind_list)
         train_X = trainX[ind_list]
         train_t = trainY[ind_list]
@@ -248,27 +245,46 @@ def split_prepare_dataset(X, y, test_size, preprocess, iid, regression):
 # Function to load and prepare MNIST dataset
 def load_mnist_digits(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
-    log.info("[*] MNIST DIGITS DATASET [*]")
     # Load dataset
     digits = load_digits()
     X_data, y_data = digits.data, digits.target
+    log.info(f"[*] MNIST DIGITS DATASET ({len(X_data)} samples) [*]")
 
     # Split, preprocess and encode
     return split_prepare_dataset(X=X_data, y=y_data,
                                  test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
 
 
+# Function to load and prepare full simplified MNIST dataset
+def load_mnist_digits_full(f_test_size=0.3, b_preprocess=True, b_iid=True):
+
+    # Load dataset
+    optical_recognition_of_handwritten_digits = fetch_ucirepo(id=80)
+
+    # data (as pandas dataframes)
+    X = optical_recognition_of_handwritten_digits.data.features
+    y = optical_recognition_of_handwritten_digits.data.targets
+    data = X.to_numpy()
+    target = y.to_numpy()
+    log.info(f"[*] MNIST FULL SIMPLIFIED DIGITS DATASET ({len(data)} samples) [*]")
+
+    # Split, preprocess and encode
+    return split_prepare_dataset(X=data, y=target,
+                                 test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
+
+
 # Function to load and prepare the Skin dataset
 def load_skin_dataset(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
-    log.info("[*] SKIN DATASET [*]")
-    # Create and split classification dataset
+    # Fetch and split classification dataset
     skin_segmentation = fetch_ucirepo(id=229)
     X = skin_segmentation.data.features
     y = skin_segmentation.data.targets
     data = X.to_numpy()
     target = y.to_numpy()
-    target = target.reshape(target.shape[0]) - 1 # Target classes original values: 1-2 => Target classes: 0-1
+    # Target classes original values: 1-2 => Target classes: 0-1
+    target = target.reshape(target.shape[0]) - 1
+    log.info(f"[*] SKIN DATASET ({len(data)} samples) [*]")
 
     # Split, preprocess and encode
     return split_prepare_dataset(X=data, y=target,
@@ -278,11 +294,11 @@ def load_skin_dataset(f_test_size=0.3, b_preprocess=True, b_iid=True):
 # Function to load and prepare carbon-nanotube dataset
 def load_carbon_nanotube(f_test_size=0.3, b_preprocess=True):
 
-    log.info("[*] CARBON NANOTUBE DATASET [*]")
     # Read dataset
     Data = pd.read_csv('../datasets/carbon_nanotubes.csv', delimiter=';')
     Inputs = Data.iloc[:, :-3].to_numpy()
     Targets = Data.iloc[:, -3:].to_numpy()  # 3 outputs to predict
+    log.info(f"[*] CARBON NANOTUBE DATASET ({len(Inputs)} samples) [*]")
 
     # Split, preprocess and encode
     return split_prepare_dataset(X=Inputs, y=Targets,
@@ -292,13 +308,13 @@ def load_carbon_nanotube(f_test_size=0.3, b_preprocess=True):
 # Function to load and prepare Dry_Bean dataset
 def load_dry_bean(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
-    log.info("[*] DRY BEAN DATASET [*]")
     # Read dataset
     Data = pd.read_excel('../datasets/Dry_Bean_Dataset.xlsx', sheet_name='Dry_Beans_Dataset')
     Data['Class'] = Data['Class'].map(
         {'BARBUNYA': 0, 'BOMBAY': 1, 'CALI': 2, 'DERMASON': 3, 'HOROZ': 4, 'SEKER': 5, 'SIRA': 6})
     Inputs = Data.iloc[:, :-1].to_numpy()
     Labels = Data.iloc[:, -1].to_numpy()
+    log.info(f"[*] DRY BEAN DATASET ({len(Inputs)} samples) [*]")
 
     # Split, preprocess and encode
     return split_prepare_dataset(X=Inputs, y=Labels,
@@ -307,7 +323,6 @@ def load_dry_bean(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
 def load_mini_boone(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
-    log.info("[*] MINI BOONE DATASET [*]")
     # Read dataset
     with open('../datasets/MiniBooNE_PID.txt') as f:
         first_line = f.readline()
@@ -318,6 +333,7 @@ def load_mini_boone(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
     Inputs = data.to_numpy()
     Labels = np.append(labels_signal, labels_background)
+    log.info(f"[*] MINI BOONE DATASET ({len(Inputs)} samples) [*]")
 
     # Split, preprocess and encode
     return split_prepare_dataset(X=Inputs, y=Labels,
@@ -328,10 +344,10 @@ def load_mini_boone(f_test_size=0.3, b_preprocess=True, b_iid=True):
 def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, n_splits, bagging,
                                  train_X, train_Y_onehot, train_Y, clients):
     # Hyperparameter search grid
-    lambda_lst          = [0.01, 0.1]
-    n_estimators_lst    = [25, 50, 75, 100]
-    p_samples_lst       = [0.2, 0.3, 0.4, 0.5, 0.6]
-    p_features_lst      = [0.7, 0.8, 0.9, 1.0]
+    lambda_lst          = [0.01, 10]
+    n_estimators_lst    = [2, 5]
+    p_samples_lst       = [0.1, 0.9]
+    p_features_lst      = [0.1, 0.9]
 
     # Ensemble method
     if bagging:
@@ -344,16 +360,18 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
 
     # Pandas dataframe dictionary
     df_dict = {"LAMBDA": [], "N_ESTIMATORS": [], "B_SAMPLES": [], "B_FEATS": [], "P_SAMPLES": [], "P_FEATS": [],
-               "METRIC_MEAN": [], "METRIC_STD": []}
+               "METRIC_MEAN": [], "METRIC_STD": [], "TIME": []}
 
     # Intermediate results
     step = floor(gs_space / 10)
     progress_iterations = [step * k for k in range(10) if step > 2]
 
     # MAIN LOOP
+    n_estimators, b_samples, b_feats, p_samples, p_feats = None, None, None, None, None
     for idx, tuple_it in enumerate(gs_it):
+        t_iter = perf_counter()
+
         # Construct parameters
-        log.info(f"GS ITER {idx+1} of {gs_space}")
         if bagging:
             lam, n_estimators, b_samples, b_feats, p_samples, p_feats = tuple_it
             ens_client = {'bagging': n_estimators, 'bootstrap_samples': b_samples, 'p_samples': p_samples,
@@ -382,7 +400,6 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
         for it, (train_index, test_index) in enumerate(cv.split(train_X, train_Y_onehot)):
 
             # Get split indexes
-            log.info(f"\tCross validation split: {it+1}")
             trainX_data, trainT_data = train_X[train_index], train_Y_onehot[train_index]
             testX_data, testT_data = train_X[test_index], train_Y[test_index]
             n_split = trainT_data.shape[0]
@@ -409,6 +426,7 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
             # Clean coordinator data for the next fold
             coordinator.clean_coordinator()
 
+        t_iter_end = perf_counter() - t_iter
         # Add results to dataframe dictionary
         df_dict["LAMBDA"].append(lam)
         df_dict["METRIC_MEAN"].append(np.array(acc_glb_splits).mean())
@@ -418,7 +436,10 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
         df_dict["B_FEATS"].append(b_feats if bagging else None)
         df_dict["P_SAMPLES"].append(p_samples if bagging else None)
         df_dict["P_FEATS"].append(p_feats if bagging else None)
+        df_dict["TIME"].append(t_iter_end)
 
+        # Log iteration
+        log.info(f"GS ITER {idx + 1} of {gs_space} ({t_iter_end:.2f} s)")
         # Log intermediate results (in progress)
         if (idx + 1) in progress_iterations and bagging:
             pd.set_option("display.precision", 8)
@@ -430,13 +451,12 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
 
 
 # Function that performs a cross-validation grid-search on a certain regression dataset
-def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_splits,
-                             bagging, train_X, train_Y, clients):
+def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_splits, bagging, train_X, train_Y, clients):
     # Hyperparameter search grid
     lambda_lst          = [0.01, 0.1, 1, 10]
     n_estimators_lst    = [2, 5, 10, 25, 50, 75, 100, 200]
-    p_samples_lst       = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
-    p_features_lst      = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    p_samples_lst       = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+    p_features_lst      = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
 
     # Ensemble method
     if bagging:
@@ -449,16 +469,18 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
 
     # Pandas dataframe dictionary
     df_dict = {"LAMBDA": [], "N_ESTIMATORS": [], "B_SAMPLES": [], "B_FEATS": [], "P_SAMPLES": [], "P_FEATS": [],
-               "METRIC_MEAN": [], "METRIC_STD": []}
+               "METRIC_MEAN": [], "METRIC_STD": [], "TIME": []}
 
     # Intermediate results
     step = floor(gs_space / 10)
     progress_iterations = [step * k for k in range(10) if step > 2]
 
     # MAIN LOOP
+    n_estimators, b_samples, b_feats, p_samples, p_feats = None, None, None, None, None
     for idx, tuple_it in enumerate(gs_it):
+        t_iter = perf_counter()
+
         # Construct parameters
-        log.info(f"GS ITER {idx+1} of {gs_space}")
         if bagging:
             lam, n_estimators, b_samples, b_feats, p_samples, p_feats = tuple_it
             ens_client = {'bagging': n_estimators, 'bootstrap_samples': b_samples, 'p_samples': p_samples,
@@ -487,7 +509,6 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
         for it, (train_index, test_index) in  enumerate(cv.split(train_X, train_Y)):
 
             # Get split indexes
-            log.info(f"\tCross validation split: {it+1}")
             trainX_data, trainT_data = train_X[train_index], train_Y[train_index]
             testX_data, testT_data = train_X[test_index], train_Y[test_index]
             n_split = trainT_data.shape[0]
@@ -514,6 +535,7 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
             # Clean coordinator data for the next fold
             coordinator.clean_coordinator()
 
+        t_iter_end = perf_counter() - t_iter
         # Add results to dataframe dictionary
         df_dict["LAMBDA"].append(lam)
         df_dict["METRIC_MEAN"].append(np.array(acc_glb_splits).mean())
@@ -523,7 +545,10 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
         df_dict["B_FEATS"].append(b_feats if bagging else None)
         df_dict["P_SAMPLES"].append(p_samples if bagging else None)
         df_dict["P_FEATS"].append(p_feats if bagging else None)
+        df_dict["TIME"].append(t_iter_end)
 
+        # Log iteration
+        log.info(f"GS ITER {idx + 1} of {gs_space} ({t_iter_end:.2f} s)")
         # Log intermediate results (in progress)
         if (idx + 1) in progress_iterations and bagging:
             pd.set_option("display.precision", 8)
