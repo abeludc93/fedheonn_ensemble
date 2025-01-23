@@ -364,7 +364,7 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
 
     # Pandas dataframe dictionary
     df_dict = {"LAMBDA": [], "N_ESTIMATORS": [], "B_SAMPLES": [], "B_FEATS": [], "P_SAMPLES": [], "P_FEATS": [],
-               "METRIC_MEAN": [], "METRIC_STD": []}
+               "METRIC_MEAN": [], "METRIC_STD": [], "TIME": []}
 
     # Intermediate results
     step = floor(gs_space / 10)
@@ -430,6 +430,7 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
             # Clean coordinator data for the next fold
             coordinator.clean_coordinator()
 
+        t_iter_end = perf_counter() - t_iter
         # Add results to dataframe dictionary
         df_dict["LAMBDA"].append(lam)
         df_dict["METRIC_MEAN"].append(np.array(acc_glb_splits).mean())
@@ -439,9 +440,10 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
         df_dict["B_FEATS"].append(b_feats if bagging else None)
         df_dict["P_SAMPLES"].append(p_samples if bagging else None)
         df_dict["P_FEATS"].append(p_feats if bagging else None)
+        df_dict["TIME"].append(t_iter_end)
 
         # Log iteration
-        log.info(f"GS ITER {idx + 1} of {gs_space} ({perf_counter()-t_iter:.2f} s)")
+        log.info(f"GS ITER {idx + 1} of {gs_space} ({t_iter_end:.2f} s)")
         # Log intermediate results (in progress)
         if (idx + 1) in progress_iterations and bagging:
             pd.set_option("display.precision", 8)
@@ -471,7 +473,7 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
 
     # Pandas dataframe dictionary
     df_dict = {"LAMBDA": [], "N_ESTIMATORS": [], "B_SAMPLES": [], "B_FEATS": [], "P_SAMPLES": [], "P_FEATS": [],
-               "METRIC_MEAN": [], "METRIC_STD": []}
+               "METRIC_MEAN": [], "METRIC_STD": [], "TIME": []}
 
     # Intermediate results
     step = floor(gs_space / 10)
@@ -537,6 +539,7 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
             # Clean coordinator data for the next fold
             coordinator.clean_coordinator()
 
+        t_iter_end = perf_counter() - t_iter
         # Add results to dataframe dictionary
         df_dict["LAMBDA"].append(lam)
         df_dict["METRIC_MEAN"].append(np.array(acc_glb_splits).mean())
@@ -546,9 +549,10 @@ def gridsearch_cv_regression(f_activ, sparse, encryption, context, cv_type, n_sp
         df_dict["B_FEATS"].append(b_feats if bagging else None)
         df_dict["P_SAMPLES"].append(p_samples if bagging else None)
         df_dict["P_FEATS"].append(p_feats if bagging else None)
+        df_dict["TIME"].append(t_iter_end)
 
         # Log iteration
-        log.info(f"GS ITER {idx + 1} of {gs_space} ({perf_counter()-t_iter:.2f} s)")
+        log.info(f"GS ITER {idx + 1} of {gs_space} ({t_iter_end:.2f} s)")
         # Log intermediate results (in progress)
         if (idx + 1) in progress_iterations and bagging:
             pd.set_option("display.precision", 8)
