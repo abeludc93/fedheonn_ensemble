@@ -13,8 +13,9 @@ from psutil import cpu_count
 import tenseal as ts
 # Application modules
 from algorithm.activation_functions import _load_act_fn
-from auxiliary.decorators import time_func
 from auxiliary.logger import logger as log
+from auxiliary.decorators import time_func
+
 
 class FedHEONN_coordinator:
 
@@ -93,7 +94,7 @@ class FedHEONN_coordinator:
 
         return W_out
 
-    @time_func
+    #@time_func
     def aggregate(self, M_list, US_list):
         # Aggregates entire M&US lists at once
 
@@ -110,7 +111,7 @@ class FedHEONN_coordinator:
                 t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
                 # Number of pool processes
                 n_processes = min(cpu, n_estimators)
-                log.debug(f"\t\tDoing parallelized aggregation, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
+                log.info(f"\t\tDoing parallelized aggregation, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
 
                 # Save tenSEAL context to temp file for later use in multiprocessing
                 ctx = None
@@ -138,7 +139,7 @@ class FedHEONN_coordinator:
                 US_base_groups = self.split_list(US_base, n_processes)
                 iterable = [[M_base_groups[k], US_base_groups[k], self.lam, self.sparse, self.encrypted, self.parallel, self.ctx_str]
                             for k in range(n_processes)]
-                log.debug(f"\t\tPreparing data for parallel process: {time.perf_counter()-t_ini:.3f} s")
+                log.info(f"\t\tPreparing data for parallel process: {time.perf_counter()-t_ini:.3f} s")
 
                 # Multiprocessing POOL
                 t_ini = time.perf_counter()
@@ -201,7 +202,7 @@ class FedHEONN_coordinator:
 
         return W
 
-    @time_func
+    #@time_func
     def aggregate_partial(self, M_list, US_list):
         # Aggregates partial M&US lists of matrix's
 
@@ -229,7 +230,7 @@ class FedHEONN_coordinator:
                 t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
                 # Number of pool processes
                 n_processes = min(cpu, n_estimators)
-                log.debug(f"\t\tDoing parallelized partial aggregation, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
+                log.info(f"\t\tDoing parallelized partial aggregation, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
 
                 # If M is encrypted data, parallelize only the partial SVD aggregation
                 if self.encrypted:
@@ -344,7 +345,7 @@ class FedHEONN_coordinator:
         # Return data (only for multiprocessing purposes, because pool processes can't modify the original matrix's)
         return M_glb, U_glb, S_glb
 
-    @time_func
+    #@time_func
     def calculate_weights(self):
         # Calculate weights for the current coordinators M_glb, U_glb and S_glb data
 
@@ -364,7 +365,7 @@ class FedHEONN_coordinator:
                 t_ini, cpu = time.perf_counter(), cpu_count(logical=False)
                 # Number of pool processes
                 n_processes = min(cpu, n_estimators)
-                log.debug(f"\t\tDoing parallelized calculate_weights, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
+                log.info(f"\t\tDoing parallelized calculate_weights, number of estimators: {({n_estimators})}, cpu-cores: {cpu}")
 
                 # Save tenSEAL context to temp file and serialize CKKS vectors for later use in multiprocessing
                 ctx, M_glb_serialized = None, []
@@ -385,7 +386,7 @@ class FedHEONN_coordinator:
                 S_groups = self.split_list(self.S_glb, n_processes)
                 iterable = [[M_groups[k], U_groups[k], S_groups[k], self.lam, self.sparse, self.encrypted, self.parallel, self.ctx_str]
                             for k in range(n_processes)]
-                log.debug(f"\t\tPreparing data for parallel process: {time.perf_counter() - t_ini:.3f} s")
+                log.info(f"\t\tPreparing data for parallel process: {time.perf_counter() - t_ini:.3f} s")
 
                 # Multiprocessing POOL
                 t_ini = time.perf_counter()
@@ -531,7 +532,7 @@ class FedHEONN_coordinator:
 
     @staticmethod
     def load_context(ctx_str):
-        log.info(f"Loading context from: ({ctx_str})")
+        log.debug(f"Loading context from: ({ctx_str})")
         with open(ctx_str, "rb") as f:
             loaded_context = ts.context_from(f.read())
         return loaded_context

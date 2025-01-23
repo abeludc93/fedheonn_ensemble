@@ -14,8 +14,8 @@ import scipy as sp
 import tenseal as ts
 # Application modules
 from algorithm.activation_functions import _load_act_fn
-from auxiliary.decorators import time_func
 from auxiliary.logger import logger as log
+from auxiliary.decorators import time_func
 
 # Abstract client
 class FedHEONN_client:
@@ -143,7 +143,7 @@ class FedHEONN_client:
                     # Append to master M&US matrix's
                     self.M.append(M_e)
                     self.US.append(US_e)
-            log.debug(f"\t\tParallelized ({n_processes}) bagging fitting done in: {time.perf_counter() - t_ini:.3f} s")
+            log.info(f"\t\tParallelized ({n_processes}) bagging fitting done in: {time.perf_counter() - t_ini:.3f} s")
 
         else:
 
@@ -187,7 +187,6 @@ class FedHEONN_client:
         # Restore original weights and return predictions
         self.W = W_orig
         return predictions
-
 
     def get_param(self):
         return self.M, self.US
@@ -321,7 +320,7 @@ class FedHEONN_regressor(FedHEONN_client):
         # Fit data
         if self.ensemble and "bagging" in self.ensemble:
             n_estimators = self.ensemble["bagging"]
-            assert  n_estimators > 1
+            assert n_estimators > 1
             predictions = self.bagging_predict(X, n_estimators=n_estimators)
             y = self.simple_mean(predictions)
         else:
@@ -334,8 +333,10 @@ class FedHEONN_regressor(FedHEONN_client):
         # Convert list to numpy array and return its mean along the 0-axis
         return np.array(list_predictions).mean(axis=0)
 
+
 class FedHEONN_classifier(FedHEONN_client):
     """FedHEONN client for classification tasks"""
+    #@time_func
     def fit(self, X, t_onehot):
         # Transpose and reshape train data
         X, t_onehot = self._preprocess(X, t_onehot)
@@ -350,7 +351,6 @@ class FedHEONN_classifier(FedHEONN_client):
         else:
             self.normal_fit(X=X, t=t_onehot)
 
-    @time_func
     def predict(self, X):
         # Transpose test data
         X = self._reshape(X).T

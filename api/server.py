@@ -57,11 +57,14 @@ class PartialData:
     US_lst: list
 
 # Computationally Intensive Task
+
+
 def cpu_bound_task(partial_data: PartialData):
     sc = singleton_coordinator()
     log.info(f"\t\tAggregating partial data from: {partial_data.id}")
     sc.aggregate_partial([partial_data.M_lst], [partial_data.US_lst])
     sc.calculate_weights()
+
 
 async def process_partial_aggregation(q: asyncio.Queue, pool: ThreadPoolExecutor):
     while True:
@@ -75,6 +78,7 @@ async def process_partial_aggregation(q: asyncio.Queue, pool: ThreadPoolExecutor
         q.task_done()
         CLIENT_DATA[partial_data.id] = "FINISHED"
 
+
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     q = asyncio.Queue()
@@ -87,8 +91,11 @@ async def lifespan(fastapi_app: FastAPI):
 
 # Create FastAPI
 app = FastAPI(lifespan=lifespan)
+
+
 def start():
     uvicorn.run(app, host=host, port=port)
+
 
 # Define singleton instance of coordinator
 def singleton_coordinator() -> FedHEONN_coordinator:
@@ -96,17 +103,20 @@ def singleton_coordinator() -> FedHEONN_coordinator:
         singleton_coordinator.server_coordinator = FedHEONN_coordinator()
     return singleton_coordinator.server_coordinator
 
+
 # Define singleton instance of the dataset loader
 def singleton_dataset_loader():
     if not hasattr(singleton_dataset_loader, "loader"):
         singleton_dataset_loader.loader = DataSetLoader()
     return singleton_dataset_loader.loader
 
+
 # REST API endpoints
 @app.get("/ping")
 def ping() -> dict[str, str]:
     """Used to check if the API is up"""
     return {"message": "pong"}
+
 
 @app.get("/status")
 def status() -> ServerStatus:
@@ -124,6 +134,7 @@ def status() -> ServerStatus:
     }
     return ServerStatus(**test_status)
 
+
 @app.post("/context", response_model=None)
 def upload_context(file: UploadFile) -> dict[str, str] |  JSONResponse:
     global CONTEXTS
@@ -138,6 +149,7 @@ def upload_context(file: UploadFile) -> dict[str, str] |  JSONResponse:
 
     return {"ctx_name": file.filename, "path": ctx_filepath}
 
+
 @app.get("/context/{ctx_name}")
 def get_context(ctx_name: str) -> Response:
     global CONTEXTS
@@ -150,6 +162,7 @@ def get_context(ctx_name: str) -> Response:
     except Exception as e:
         return answer_418(str(e))
 
+
 @app.put("/context/{ctx_name}", response_model=None)
 def select_context(ctx_name: str) -> str | JSONResponse:
     global CURRENT_CONTEXT, CONTEXTS
@@ -159,6 +172,7 @@ def select_context(ctx_name: str) -> str | JSONResponse:
         return ctx_name
     else:
         return answer_404(f"Context not found on server database: {ctx_name}")
+
 
 @app.delete("/context/{ctx_name}", response_model=None)
 def erase_context(ctx_name: str) -> JSONResponse | None:
@@ -170,7 +184,8 @@ def erase_context(ctx_name: str) -> JSONResponse | None:
         if CURRENT_CONTEXT[0] == ctx_name:
             CURRENT_CONTEXT = (None, None)
     else:
-         return answer_404(f'Context not found on server database: {ctx_name}')
+        return answer_404(f'Context not found on server database: {ctx_name}')
+
 
 @app.put("/dataset/{dataset_name}", response_model=None)
 def select_dataset(dataset_name: str) -> str | JSONResponse:
@@ -181,6 +196,7 @@ def select_dataset(dataset_name: str) -> str | JSONResponse:
         return dataset_name
     else:
         return answer_404(f"Dataset not found on server database: {dataset_name}")
+
 
 @app.get("/dataset/load", response_model=None)
 def load_dataset() -> int | JSONResponse:
@@ -200,6 +216,7 @@ def load_dataset() -> int | JSONResponse:
     else:
         return answer_404("Dataset not selected!")
 
+
 @app.get("/dataset/fetch", response_model=None)
 def fetch_dataset(size:int) -> str | JSONResponse:
     dataset_loader = singleton_dataset_loader()
@@ -214,6 +231,7 @@ def fetch_dataset(size:int) -> str | JSONResponse:
         fragment = dataset_loader.fetch_fragment(size)
         return json.dumps([frag.tolist() for frag in fragment])
 
+
 @app.get("/dataset/fetch/test", response_model=None)
 def fetch_dataset_test() -> str | JSONResponse:
     dataset_loader = singleton_dataset_loader()
@@ -225,6 +243,7 @@ def fetch_dataset_test() -> str | JSONResponse:
     else:
         fragment = dataset_loader.fetch_test()
         return json.dumps([frag.tolist() for frag in fragment])
+
 
 @app.delete("/server/clean")
 def clean_server() -> JSONResponse:
@@ -238,6 +257,7 @@ def clean_server() -> JSONResponse:
     except Exception as err:
         return answer_404(str(err))
     return answer_200(msg="Dataset, context and coordinator reset!")
+
 
 @app.put("/coordinator/parameters")
 def set_coordinator_parameters(coord_params: CoordinatorParams) -> JSONResponse:
@@ -254,6 +274,7 @@ def set_coordinator_parameters(coord_params: CoordinatorParams) -> JSONResponse:
         return answer_200('Updated coordinator parameters!')
     except Exception as err:
         return answer_418(str(err))
+
 
 @app.post("/coordinator/index_features")
 def calculate_index_features(bagging_params: BaggingParams) -> JSONResponse:
@@ -272,12 +293,14 @@ def calculate_index_features(bagging_params: BaggingParams) -> JSONResponse:
     except Exception as err:
         return answer_418(str(err))
 
+
 @app.get("/coordinator/index_features")
 def send_index_features() -> str:
     sc = singleton_coordinator()
 
     idx_feats = sc.send_idx_feats()
     return json.dumps(idx_feats)
+
 
 @app.get("/coordinator/send_weights")
 def send_weights() -> JSONResponse:
@@ -319,6 +342,7 @@ async def aggregate_partial(request: Request) -> JSONResponse:
 
     except Exception as e:
         return answer_404(str(e))
+
 
 @app.get("/aggregate/status")
 async def check_status(data_uuid: str):

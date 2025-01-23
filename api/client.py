@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from api.utils import ServerStatus, handle_error_response, ParseError, ServerError, deserialize_coordinator_weights
 from auxiliary.logger import logger as log
 
+
 class Client:
     """Client to communicate with server for aggregation and evaluation"""
     def __init__(self, hostname: str, port: int):
