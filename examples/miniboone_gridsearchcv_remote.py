@@ -2,11 +2,9 @@
 # -*- coding: UTF-8 -*-
 
 # Application modules
-from auxiliary.decorators import time_func
 from examples.utils import load_mini_boone,  gridsearch_cv_classification, export_dataframe_results
 
 
-@time_func
 def main():
 
     # Load dataset
