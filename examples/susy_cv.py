@@ -2,10 +2,11 @@
 # -*- coding: UTF-8 -*-
 
 import numpy as np
+import pandas as pd
 from sklearn.model_selection import ShuffleSplit, KFold
 from algorithm.fedHEONN_clients import FedHEONN_classifier
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
-from examples.utils import global_fit, load_mini_boone
+from examples.utils import global_fit, split_prepare_dataset
 from auxiliary.logger import logger as log
 
 
@@ -40,7 +41,7 @@ def main():
             # Split train equally data among clients
             rang = range(int(i * n_split / n_clients), int(i * n_split / n_clients) + int(n_split / n_clients))
             client = FedHEONN_classifier(f=f_act, encrypted=enc, sparse=spr, context=ctx, ensemble=ens_client)
-            log.info(f"\t\tTraining client: {i+1} of {n_clients} ({min(rang)}-{max(rang)})")
+            log.debug(f"\t\tTraining client: {i+1} of {n_clients} ({min(rang)}-{max(rang)})")
             if ens_client:
                 client.set_idx_feats(coordinator.send_idx_feats())
 
@@ -51,7 +52,6 @@ def main():
         # Perform fit and predict validation split
         acc_glb, w_glb = global_fit(list_clients=lst_clients, coord=coordinator,
                                     testX=testX_data, testT=testT_data, regression=False)
-
         # Save results
         acc_glb_splits.append(acc_glb)
         w_glb_splits.append(w_glb)
@@ -65,10 +65,23 @@ def main():
     log.info(f"CV ACCURACY GLOBAL: MEAN {np.array(acc_glb_splits).mean():.2f} % - STD: {np.array(acc_glb_splits).std():.2f}")
 
 
+def load_susy(f_test_size=0.3, b_preprocess=True, b_iid=True):
+
+    # Load dataset
+    Data = pd.read_csv('../datasets/SUSY.csv', delimiter=',')
+    Inputs = Data.iloc[:, 1:].to_numpy()
+    Targets = Data.iloc[:, 0].to_numpy()
+
+    log.info(f"[*] SUSY ({len(Inputs)} samples) [*]")
+    # Split, preprocess and encode
+    return split_prepare_dataset(X=Inputs, y=Targets,
+                                 test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
+
+
 if __name__ == "__main__":
     # ----MODEL HYPERPARAMETERS----
     # Number of clients
-    n_clients = 1
+    n_clients = 100
     # Number of clients per group
     n_groups = 1
     # Randomize number of clients per group in range (n_groups/2, groups*2)
@@ -86,12 +99,12 @@ if __name__ == "__main__":
     # Preprocess data
     pre = True
     # Ensemble
-    bag = True
+    bag = False
     # Random Patches bagging parameters
     n_estimators = 50
     p_samples = 0.1
     b_samples = False
-    p_feat = 0.5
+    p_feat = 0.75
     b_feat = False
     # Cross-validation
     kfold = True
@@ -121,6 +134,6 @@ if __name__ == "__main__":
 
     # Load dataset
     np.random.seed(1)
-    trainX, trainY_onehot, testX, testY, trainY = load_mini_boone(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
+    trainX, trainY_onehot, testX, testY, trainY = load_susy(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
     # CROSS VALIDATION MAIN FUNCTION
     main()

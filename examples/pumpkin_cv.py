@@ -2,11 +2,13 @@
 # -*- coding: UTF-8 -*-
 
 import numpy as np
+import pandas as pd
 from sklearn.model_selection import ShuffleSplit, KFold
+from sklearn.preprocessing import LabelEncoder
 from algorithm.fedHEONN_clients import FedHEONN_classifier
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
-from examples.utils import global_fit, load_mini_boone
 from auxiliary.logger import logger as log
+from examples.utils import global_fit, split_prepare_dataset
 
 
 def main():
@@ -56,13 +58,27 @@ def main():
         acc_glb_splits.append(acc_glb)
         w_glb_splits.append(w_glb)
 
-        # Print cross-validation metrics
-        log.debug(f"Validation accuracy global: {acc_glb:0.2f}")
-
         # Clean coordinator data for the next fold
         coordinator.clean_coordinator()
 
     log.info(f"CV ACCURACY GLOBAL: MEAN {np.array(acc_glb_splits).mean():.2f} % - STD: {np.array(acc_glb_splits).std():.2f}")
+
+
+def load_pumpkin(f_test_size, b_preprocess, b_iid):
+    # Load dataset
+    Data = pd.read_excel('../datasets/pumpkin.xlsx', sheet_name='Pumpkin_Seeds_Dataset')
+    Inputs = Data.iloc[:, :-1].to_numpy()
+    Targets = Data.iloc[:, -1].to_numpy()
+
+    # Target_encoding
+
+    Targets = LabelEncoder().fit(Targets).transform(Targets)
+
+    log.info(f"[*] PISTACHIO DATASET ({len(Inputs)} samples, {Inputs.shape[1]} features) [*]")
+
+    # Split, preprocess and encode
+    return split_prepare_dataset(X=Inputs, y=Targets,
+                                 test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
 
 
 if __name__ == "__main__":
@@ -88,10 +104,10 @@ if __name__ == "__main__":
     # Ensemble
     bag = True
     # Random Patches bagging parameters
-    n_estimators = 50
-    p_samples = 0.1
+    n_estimators = 10
+    p_samples = 0.5
     b_samples = False
-    p_feat = 0.5
+    p_feat = 0.29
     b_feat = False
     # Cross-validation
     kfold = True
@@ -121,6 +137,6 @@ if __name__ == "__main__":
 
     # Load dataset
     np.random.seed(1)
-    trainX, trainY_onehot, testX, testY, trainY = load_mini_boone(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
+    trainX, trainY_onehot, testX, testY, trainY = load_pumpkin(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
     # CROSS VALIDATION MAIN FUNCTION
     main()

@@ -88,10 +88,10 @@ if __name__ == "__main__":
     # Ensemble
     bag = True
     # Random Patches bagging parameters
-    n_estimators = 10
-    p_samples = 0.8
-    b_samples = True
-    p_feat = 1
+    n_estimators = 100
+    p_samples = 0.01
+    b_samples = False
+    p_feat = .75
     b_feat = False
     # Cross-validation
     kfold = True

@@ -219,7 +219,7 @@ def one_hot_encoding(trainY):
     # One hot encoding for the targets
     t_onehot = np.zeros((n, n_classes))
     for i, value in enumerate(trainY):
-        t_onehot[i, value] = 1
+        t_onehot[i, int(value)] = 1
 
     return t_onehot
 
@@ -342,16 +342,32 @@ def load_mini_boone(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
 # Function that performs a cross-validation grid-search on a certain classification dataset
 def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, n_splits, bagging,
-                                 train_X, train_Y_onehot, train_Y, clients):
-    # Hyperparameter search grid
-    lambda_lst          = [0.001, 0.1, 10]
-    n_estimators_lst    = [2, 8, 32, 96]
-    p_samples_lst       = [0.1, 0.25, 0.5, 0.75, 0.9]
-    p_features_lst      = [0.1, 0.25, 0.5, 0.75, 0.9]
+                                 train_X, train_Y_onehot, train_Y, clients, **kwargs):
+
+    # User or default hyperparameter search grid
+    if 'lambda_lst' in kwargs:
+        lambda_lst = kwargs['lambda_lst']
+    else:
+        lambda_lst = [0.0001, 0.001, 0.1, 1]
+
+    if 'n_estimators_lst' in kwargs:
+        n_estimators_lst = kwargs['n_estimators_lst']
+    else:
+        n_estimators_lst = [2, 10, 25, 50, 100]
+
+    if 'p_samples_lst' in kwargs:
+        p_samples_lst = kwargs['p_samples_lst']
+    else:
+        p_samples_lst = [.1, .2, .3, .4, .5, .6, .7, .8, .9, 1]
+
+    if 'p_features_lst' in kwargs:
+        p_features_lst = kwargs['p_features_lst']
+    else:
+        p_features_lst = [.1, .2, .3, .4, .5, .6, .7, .8, .9, 1]
 
     # Ensemble method
     if bagging:
-        gs_space = np.prod([len(i) for i in [lambda_lst, n_estimators_lst, p_samples_lst, p_features_lst, [True,False], [True,False]]])
+        gs_space = np.prod([len(i) for i in [lambda_lst, n_estimators_lst, p_samples_lst, p_features_lst, [True, False], [True, False]]])
         gs_it = generate_grid_search_iterator(lambda_lst, n_estimators_lst, p_samples_lst, p_features_lst)
     else:
         gs_space = len(lambda_lst)

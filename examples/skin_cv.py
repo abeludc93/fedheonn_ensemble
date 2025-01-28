@@ -95,10 +95,10 @@ if __name__ == "__main__":
     bag = True
     # Random Patches bagging parameters
     n_estimators = 2
-    p_samples = 0.1
+    p_samples = .1
     b_samples = False
-    p_feat = 0.7
-    b_feat = True
+    p_feat = 1
+    b_feat = False
     # Cross-validation
     kfold = True
     split = 10

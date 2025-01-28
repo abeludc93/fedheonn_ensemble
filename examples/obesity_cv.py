@@ -2,10 +2,14 @@
 # -*- coding: UTF-8 -*-
 
 import numpy as np
+import pandas as pd
 from sklearn.model_selection import ShuffleSplit, KFold
+from ucimlrepo import fetch_ucirepo
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder
+from sklearn.compose import ColumnTransformer
 from algorithm.fedHEONN_clients import FedHEONN_classifier
 from algorithm.fedHEONN_coordinators import FedHEONN_coordinator
-from examples.utils import global_fit, load_mini_boone
+from examples.utils import global_fit, split_prepare_dataset
 from auxiliary.logger import logger as log
 
 
@@ -56,13 +60,38 @@ def main():
         acc_glb_splits.append(acc_glb)
         w_glb_splits.append(w_glb)
 
-        # Print cross-validation metrics
-        log.debug(f"Validation accuracy global: {acc_glb:0.2f}")
-
         # Clean coordinator data for the next fold
         coordinator.clean_coordinator()
 
     log.info(f"CV ACCURACY GLOBAL: MEAN {np.array(acc_glb_splits).mean():.2f} % - STD: {np.array(acc_glb_splits).std():.2f}")
+
+
+def load_obesity(f_test_size, b_preprocess, b_iid):
+    # Fetch and split classification dataset
+    skin_segmentation = fetch_ucirepo(id=544)
+    X = skin_segmentation.data.features
+    y = skin_segmentation.data.targets
+
+    # Inputs and targets encoding
+    cat_cols = ["Gender", "family_history_with_overweight", "FAVC", "CAEC", "SMOKE", "SCC", "CALC", "MTRANS"]
+    col_transformer = ColumnTransformer(
+        transformers=[('cat', OneHotEncoder(drop=None, sparse_output=False), cat_cols)],
+        remainder='passthrough')
+    # OneHotEncoding -> Test with drop='first'
+    X_transformed = col_transformer.fit_transform(X)
+
+    encoded_cols = col_transformer.named_transformers_['cat'].get_feature_names_out(cat_cols)
+    X_transformed = pd.DataFrame(X_transformed,
+                                 columns=list(encoded_cols)+[col for col in X.columns if col not in cat_cols])
+
+    data = X_transformed.to_numpy()
+    target = LabelEncoder().fit(y).transform(y)
+
+    log.info(f"[*] OBESITY DATASET ({len(data)} samples, {data.shape[1]} features) [*]")
+
+    # Split, preprocess and encode
+    return split_prepare_dataset(X=data, y=target,
+                                 test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
 
 
 if __name__ == "__main__":
@@ -80,18 +109,18 @@ if __name__ == "__main__":
     # Regularization
     lam = 0.001
     # Activation function
-    f_act = 'logs'
+    f_act = 'relu'
     # IID or non-IID scenario (True or False)
     iid = True
     # Preprocess data
     pre = True
     # Ensemble
-    bag = True
+    bag = False
     # Random Patches bagging parameters
     n_estimators = 50
-    p_samples = 0.1
+    p_samples = 0.25
     b_samples = False
-    p_feat = 0.5
+    p_feat = 0.9
     b_feat = False
     # Cross-validation
     kfold = True
@@ -121,6 +150,6 @@ if __name__ == "__main__":
 
     # Load dataset
     np.random.seed(1)
-    trainX, trainY_onehot, testX, testY, trainY = load_mini_boone(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
+    trainX, trainY_onehot, testX, testY, trainY = load_obesity(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
     # CROSS VALIDATION MAIN FUNCTION
     main()
