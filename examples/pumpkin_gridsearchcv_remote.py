@@ -29,6 +29,8 @@ def load_pumpkin(f_test_size, b_preprocess, b_iid):
 
 def main():
 
+    lmbda = [.001, .01]
+
     # Load dataset
     trainX, trainY_onehot, testX, testY, trainY = load_pumpkin(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
 
@@ -36,11 +38,13 @@ def main():
     # Classic execution
     dict_no_bag = gridsearch_cv_classification(f_activ=f_act, sparse=spr, encryption=enc, context=ctx,
                                                cv_type=kfold, n_splits=splits, bagging=False, train_X=trainX,
-                                               train_Y_onehot=trainY_onehot, train_Y=trainY, clients=n_clients)
+                                               train_Y_onehot=trainY_onehot, train_Y=trainY, clients=n_clients,
+                                               lambda_lst=lmbda)
     # Ensemble execution
     dict_bag = gridsearch_cv_classification(f_activ=f_act, sparse=spr, encryption=enc, context=ctx,
                                             cv_type=kfold, n_splits=splits, bagging=True, train_X=trainX,
-                                            train_Y_onehot=trainY_onehot, train_Y=trainY, clients=n_clients)
+                                            train_Y_onehot=trainY_onehot, train_Y=trainY, clients=n_clients,
+                                            lambda_lst=lmbda)
 
     # EXPORT RESULTS
     export_dataframe_results(dict_no_bag=dict_no_bag, dict_bag=dict_bag, dataset_name="Pumpkin", regression=False)

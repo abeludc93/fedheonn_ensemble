@@ -12,7 +12,6 @@ from auxiliary.logger import logger as log
 
 
 def load_obesity(f_test_size, b_preprocess, b_iid):
-
     # Fetch and split classification dataset
     skin_segmentation = fetch_ucirepo(id=544)
     X = skin_segmentation.data.features
@@ -28,7 +27,7 @@ def load_obesity(f_test_size, b_preprocess, b_iid):
 
     encoded_cols = col_transformer.named_transformers_['cat'].get_feature_names_out(cat_cols)
     X_transformed = pd.DataFrame(X_transformed,
-                                 columns=list(encoded_cols)+[col for col in X.columns if col not in cat_cols])
+                                 columns=list(encoded_cols) + [col for col in X.columns if col not in cat_cols])
 
     data = X_transformed.to_numpy()
     target = LabelEncoder().fit(y).transform(y)
@@ -41,6 +40,8 @@ def load_obesity(f_test_size, b_preprocess, b_iid):
 
 
 def main():
+    # Grid
+    lmbda = [.001, .01, .1]
 
     # Load dataset
     trainX, trainY_onehot, testX, testY, trainY = load_obesity(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
@@ -49,11 +50,14 @@ def main():
     # Classic execution
     dict_no_bag = gridsearch_cv_classification(f_activ=f_act, sparse=spr, encryption=enc, context=ctx,
                                                cv_type=kfold, n_splits=splits, bagging=False, train_X=trainX,
-                                               train_Y_onehot=trainY_onehot, train_Y=trainY, clients=n_clients)
+                                               train_Y_onehot=trainY_onehot, train_Y=trainY, clients=n_clients,
+                                               lambda_lst=lmbda)
+
     # Ensemble execution
     dict_bag = gridsearch_cv_classification(f_activ=f_act, sparse=spr, encryption=enc, context=ctx,
                                             cv_type=kfold, n_splits=splits, bagging=True, train_X=trainX,
-                                            train_Y_onehot=trainY_onehot, train_Y=trainY, clients=n_clients)
+                                            train_Y_onehot=trainY_onehot, train_Y=trainY, clients=n_clients,
+                                            lambda_lst=lmbda)
 
     # EXPORT RESULTS
     export_dataframe_results(dict_no_bag=dict_no_bag, dict_bag=dict_bag, dataset_name="Obesity", regression=False)
@@ -70,7 +74,7 @@ if __name__ == "__main__":
     # Sparse matrices
     spr = True
     # Activation function
-    f_act = 'logs'
+    f_act = 'relu'
     # IID or non-IID scenario (True or False)
     iid = True
     # Preprocess data
@@ -82,6 +86,7 @@ if __name__ == "__main__":
     ctx = None
     if enc:
         import tenseal as ts
+
         ctx = ts.context(
             ts.SCHEME_TYPE.CKKS,
             poly_modulus_degree=32768,

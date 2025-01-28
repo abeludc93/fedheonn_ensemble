@@ -3,7 +3,9 @@
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import ShuffleSplit, KFold
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import ShuffleSplit, KFold, cross_val_score
+from sklearn.neighbors import KNeighborsClassifier
 from ucimlrepo import fetch_ucirepo
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 from sklearn.compose import ColumnTransformer
@@ -94,6 +96,19 @@ def load_obesity(f_test_size, b_preprocess, b_iid):
                                  test_size=f_test_size, preprocess=b_preprocess, iid=b_iid, regression=False)
 
 
+def alt():
+    # Modelos
+    logistic_model = LogisticRegression(max_iter=1000)  # Ajusta el max_iter si es necesario
+    knn_model = KNeighborsClassifier(n_neighbors=5)
+
+    # Validación cruzada (5 folds por defecto)
+    logistic_scores = cross_val_score(logistic_model, trainX, trainY, cv=10)
+    knn_scores = cross_val_score(knn_model, trainX, trainY, cv=10)
+
+    # Resultados
+    print("Logistic Regression CV Accuracy:", logistic_scores.mean())
+    print("KNN CV Accuracy:", knn_scores.mean())
+
 if __name__ == "__main__":
     # ----MODEL HYPERPARAMETERS----
     # Number of clients
@@ -107,7 +122,7 @@ if __name__ == "__main__":
     # Sparse matrices
     spr = True
     # Regularization
-    lam = 0.001
+    lam = .1
     # Activation function
     f_act = 'relu'
     # IID or non-IID scenario (True or False)
@@ -115,7 +130,7 @@ if __name__ == "__main__":
     # Preprocess data
     pre = True
     # Ensemble
-    bag = False
+    bag = True
     # Random Patches bagging parameters
     n_estimators = 50
     p_samples = 0.25
@@ -152,4 +167,5 @@ if __name__ == "__main__":
     np.random.seed(1)
     trainX, trainY_onehot, testX, testY, trainY = load_obesity(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
     # CROSS VALIDATION MAIN FUNCTION
-    main()
+    #main()
+    alt()

@@ -91,7 +91,7 @@ if __name__ == "__main__":
     # Sparse matrices
     spr = True
     # Regularization
-    lam = 0.001
+    lam = 0.1
     # Activation function
     f_act = 'logs'
     # IID or non-IID scenario (True or False)

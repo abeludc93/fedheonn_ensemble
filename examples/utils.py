@@ -365,9 +365,14 @@ def gridsearch_cv_classification(f_activ, sparse, encryption, context, cv_type, 
     else:
         p_features_lst = [.1, .2, .3, .4, .5, .6, .7, .8, .9, 1]
 
+    if 'b_lst' in kwargs:
+        beta_lst = kwargs['b_lst']
+    else:
+        beta_lst = [True, False]
+
     # Ensemble method
     if bagging:
-        gs_space = np.prod([len(i) for i in [lambda_lst, n_estimators_lst, p_samples_lst, p_features_lst, [True, False], [True, False]]])
+        gs_space = np.prod([len(i) for i in [lambda_lst, n_estimators_lst, p_samples_lst, p_features_lst, beta_lst, beta_lst]])
         gs_it = generate_grid_search_iterator(lambda_lst, n_estimators_lst, p_samples_lst, p_features_lst)
     else:
         gs_space = len(lambda_lst)

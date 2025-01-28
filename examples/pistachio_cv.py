@@ -98,13 +98,13 @@ if __name__ == "__main__":
     # Regularization
     lam = 0.001
     # Activation function
-    f_act = 'logs'
+    f_act = 'linear'
     # IID or non-IID scenario (True or False)
     iid = True
     # Preprocess data
     pre = True
     # Ensemble
-    bag = True
+    bag = False
     # Random Patches bagging parameters
     n_estimators = 10
     p_samples = 0.5

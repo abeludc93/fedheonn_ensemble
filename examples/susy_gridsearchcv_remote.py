@@ -22,6 +22,10 @@ def load_susy(f_test_size=0.3, b_preprocess=True, b_iid=True):
 
 def main():
 
+    lmbda = [.001]
+    n_est = [2, 10, 50, 100]
+    betas = [False]
+
     # Load dataset
     trainX, trainY_onehot, testX, testY, trainY = load_susy(f_test_size=0.3, b_preprocess=pre, b_iid=iid)
 
@@ -29,11 +33,13 @@ def main():
     # Classic execution
     dict_no_bag = gridsearch_cv_classification(f_activ=f_act, sparse=spr, encryption=enc, context=ctx,
                                                cv_type=kfold, n_splits=splits, bagging=False, train_X=trainX,
-                                               train_Y_onehot=trainY_onehot, train_Y=trainY, clients=n_clients)
+                                               train_Y_onehot=trainY_onehot, train_Y=trainY, clients=n_clients,
+                                               lambda_lst=lmbda, n_estimators_lst=n_est, b_lst=betas)
     # Ensemble execution
     dict_bag = gridsearch_cv_classification(f_activ=f_act, sparse=spr, encryption=enc, context=ctx,
                                             cv_type=kfold, n_splits=splits, bagging=True, train_X=trainX,
-                                            train_Y_onehot=trainY_onehot, train_Y=trainY, clients=n_clients)
+                                            train_Y_onehot=trainY_onehot, train_Y=trainY, clients=n_clients,
+                                            lambda_lst=lmbda, n_estimators_lst=n_est, b_lst=betas)
 
     # EXPORT RESULTS
     export_dataframe_results(dict_no_bag=dict_no_bag, dict_bag=dict_bag, dataset_name="SUSY", regression=False)
