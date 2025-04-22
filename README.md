@@ -1,5 +1,5 @@
 # FEDHEONN_ENSEMBLE
-Added ensemble capacities (via the *Random Patches* bagging technique) to the original [FEDHEONN algorithm](https://github.com/ofontenla/FedHEONN) and implemented a server/client REST API arquitecture (using [FastAPI](https://github.com/tiangolo/fastapi)) for federated learning scenearios.
+Added ensemble capabilities (via the *Random Patches* bagging technique) to the original [FEDHEONN algorithm](https://github.com/ofontenla/FedHEONN) and a server/client REST API architecture (using [FastAPI](https://github.com/tiangolo/fastapi)) has been implemented for federated learning scenearios.
 
 ## Python
 Developed using **Python_3.10.7**
